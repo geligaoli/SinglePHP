@@ -41,6 +41,7 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
     │   ├── Lib                             #外部库
     │   ├── Log                             #日志文件夹，需要写权限
     │   ├── Model                           #数据库模型
+    │   │   └── IndexModel.class.php
     │   ├── View                            #模板文件夹
     │   │   ├── Index                       #对应Index控制器
     │   │   │   └── Index.php
