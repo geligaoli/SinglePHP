@@ -3,9 +3,9 @@
 
 ### 简介
 
-SinglePHP-Ex是一个单文件PHP框架，适用于简单系统的快速开发，提供了简单的MVC方式，简单且实用。整个文件不超过1000行。
+SinglePHP-Ex是一个单文件PHP框架，提供了简单的MVC方式，简单系统的快速开发。整个框架不超过1000行。
 
-SinglePHP-Ex是采用 [SinglePHP](ttps://github.com/leo108/SinglePHP) 为基础，并整合了 [PhpPoem](https://github.com/cleey/phppoem) 部分代码。
+SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础，并整合了 [PhpPoem](https://github.com/cleey/phppoem) 部分代码。
 
 功能的增强有：
 
