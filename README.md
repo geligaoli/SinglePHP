@@ -9,9 +9,9 @@ SinglePHP-Ex是采用 [SinglePHP](ttps://github.com/leo108/SinglePHP) 为基础�
 
 功能的增强有：
 
-    加入View的模板功能，根据文件时间来自动生成编译后的模板缓存文件
-    
-    数据库操作改为PDO，可以在php7.1执行。（DB与原SinglePHP不兼容）
+    加入View的模板功能，根据文件时间来自动生成编译后的模板缓存文件。
+    
+    数据库操作改为PDO，可以在php7.1执行。（DB与原SinglePHP不兼容）。
     
     拦截php的异常错误，DEBUG状态下，在页面显示错误trace，方便调试。
     
@@ -19,6 +19,7 @@ SinglePHP-Ex是采用 [SinglePHP](ttps://github.com/leo108/SinglePHP) 为基础�
     
     加入了命令行模式，方便写脚本用。
     
+    
 目前SinglePHP-Ex由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
 
 ### 文档
@@ -56,6 +57,8 @@ SinglePHP-Ex是采用 [SinglePHP](ttps://github.com/leo108/SinglePHP) 为基础�
         ├── index.php                       #入口文件
         ├── js                              #javascript文件
         └── css                             #css样式表
+
+
 ### Hello World
 
 只需增加3个文件，即可输出hello world。
