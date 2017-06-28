@@ -7,7 +7,7 @@
  * @param array|null $value 配置值
  * @return array|null
  */
-function C($key,$value=null){
+function Config($key, $value=null){
     static $_config = array();
     $args = func_num_args();
     if($args == 1){
@@ -41,7 +41,7 @@ function C($key,$value=null){
  * @param array $data 传递给widget的变量列表，key为变量名，value为变量值
  * @return void
  */
-function W($name, $data = array()){
+function Widget($name, $data = array()){
     $fullName = $name.'Widget';
     if(!class_exists($fullName)){
         halt('Widget '.$name.'不存在');
@@ -72,10 +72,19 @@ function halt($str, $display=false){
  * 获取数据库实例
  * @return DB
  */
-function M(){
-    $dbConf = C(array('DB_HOST','DB_PORT','DB_USER','DB_PWD','DB_NAME','DB_CHARSET'));
+function db(){
+    $dbConf = Config(array('DB_TYPE','DB_HOST','DB_PORT','DB_USER','DB_PWD','DB_NAME','DB_CHARSET'));
     return DB::getInstance($dbConf);
 }
+
+// /**
+//  * 创建Model实例
+//  * @param unknown $model
+//  */
+// function Model($model) {
+//     $modelClass = $model.'Model';
+//     return new $modelClass($model);
+// }
 
 /**
  * 如果文件存在就include进来
@@ -113,7 +122,7 @@ class SinglePHP {
      * @param array $conf
      */
     private function __construct($conf){
-        C($conf);
+        Config($conf);
     }
     private function __clone(){}
 
@@ -134,14 +143,36 @@ class SinglePHP {
      * @return void
      */
     public function run(){
-        if(C('USE_SESSION') == true){
+        register_shutdown_function('\SinglePHP::appFatal'); // 错误和异常处理
+        set_error_handler('\SinglePHP::appError');
+        set_exception_handler('\SinglePHP::appException');
+        
+        define('APP_URL', str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']));
+        define('IS_AJAX', ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) ? true : false);
+        define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
+        define('SINGLE_PHP_DEFINE', "1");
+        defined('APP_DEBUG') || define('APP_DEBUG',false);
+        date_default_timezone_set("Asia/Shanghai");
+        
+        if(Config('USE_SESSION') == true){
             session_start();
         }
-        C('APP_FULL_PATH', getcwd().'/'.C('APP_PATH').'/');
-        includeIfExist( C('APP_FULL_PATH').'/common.php');
-        $pathMod = C('PATH_MOD');
+        Config('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH').'/');
+        includeIfExist( Config('APP_FULL_PATH').'/common.php');
+        $pathMod = Config('PATH_MOD');
         $pathMod = empty($pathMod)?'NORMAL':$pathMod;
         spl_autoload_register(array('SinglePHP', 'autoload'));
+        
+        if (IS_CLI) {   // 命令行模式
+            Config('PATH_MOD', 'PATH_INFO');
+            $tmp = parse_url($_SERVER['argv'][1]);
+            $_SERVER['PATH_INFO'] = $tmp['path'];
+            $tmp = explode('&', $tmp['query']);
+            foreach ($tmp as $one) {
+                list($k, $v) = explode('=', $one);
+                $_GET[$k] = $v;
+            }
+        }
         if(strcmp(strtoupper($pathMod),'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])){
             $this->c = isset($_GET['c'])?$_GET['c']:'Index';
             $this->a = isset($_GET['a'])?$_GET['a']:'Index';
@@ -176,12 +207,73 @@ class SinglePHP {
      */
     public static function autoload($class){
         if(substr($class,-10)=='Controller'){
-            includeIfExist(C('APP_FULL_PATH').'/Controller/'.$class.'.class.php');
+            includeIfExist(Config('APP_FULL_PATH').'/Controller/'.$class.'.class.php');
+        }elseif(substr($class,-5)=='Model'){
+            includeIfExist(Config('APP_FULL_PATH').'/Model/'.$class.'.class.php');
         }elseif(substr($class,-6)=='Widget'){
-            includeIfExist(C('APP_FULL_PATH').'/Widget/'.$class.'.class.php');
+            includeIfExist(Config('APP_FULL_PATH').'/Widget/'.$class.'.class.php');
         }else{
-            includeIfExist(C('APP_FULL_PATH').'/Lib/'.$class.'.class.php');
+            includeIfExist(Config('APP_FULL_PATH').'/Lib/'.$class.'.class.php');
         }
+    }
+    // 接受PHP内部回调异常处理
+    static function appException($e) {
+        $err = array();
+        $err['message'] = $e->getMessage();
+        $trace = $e->getTrace();
+        if ('E' == $trace[0]['function']) {
+            $err['file'] = $trace[0]['file'];
+            $err['line'] = $trace[0]['line'];
+        } else {
+            $err['file'] = $e->getFile();
+            $err['line'] = $e->getLine();
+        }
+        $err['trace'] = $e->getTraceAsString();
+        Log::error($err['message']);
+        self::halt($err);
+    }
+    // 自定义错误处理
+    static function appError($errno, $errstr, $errfile, $errline) {
+        $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
+        if (in_array($errno, $haltArr)) {
+            $errStr = "Errno: $errno $errstr File: $errfile lineno: $errline.";
+            Log::error($errStr);
+            self::halt($errStr);
+        }
+    }
+    // 致命错误捕获
+    static function appFatal() {
+        $e = error_get_last();
+        $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
+        if ($e && in_array($e['type'], $haltArr)) {
+            self::halt($e);
+        }
+    }
+    // 错误输出
+    static function halt($err) {
+        $e = array();
+        if (APP_DEBUG || IS_CLI) {
+            if (!is_array($err)) {
+                $trace = debug_backtrace();
+                $e['message'] = $err;
+                $e['file'] = $trace[0]['file'];
+                $e['line'] = $trace[0]['line'];
+                ob_start();
+                debug_print_backtrace();
+                $e['trace'] = ob_get_clean();
+            } else {
+                $e = $err;
+            }
+        } else {
+            $e['message'] = is_array($err) ? $err['message'] : $err;
+        }
+        if (IS_CLI) {
+            exit((DIRECTORY_SEPARATOR=='\\' ? iconv('UTF-8', 'gbk', $e['message']) : $e['message'])
+                . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
+        }
+        
+        echo nl2br(htmlspecialchars(print_r($e, true), ENT_QUOTES)); // . '<pre>' . '</pre>';
+        exit;
     }
 }
 
@@ -241,8 +333,17 @@ class Controller {
      * 将数据用json格式输出至浏览器，并停止执行代码
      * @param array $data 要输出的数据
      */
-    protected function ajaxReturn($data){
-        echo json_encode($data);
+    protected function ajax($data){
+        $jsondata = is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Length: '. strlen($jsondata));
+        echo ($jsondata);
+        exit;
+    }
+    protected function xml($xmlstr){
+        header('Content-Type: text/xml; charset=utf-8');
+        header('Content-Length: '. strlen($xmlstr));
+        echo ($xmlstr);
         exit;
     }
     /**
@@ -266,6 +367,11 @@ class View {
      */
     private $_tplDir;
     /**
+     * 编译后模板缓存目录
+     * @var string
+     */
+    private $_tplCacheDir;
+    /**
      * 视图文件路径
      * @var string
      */
@@ -286,11 +392,11 @@ class View {
      */
     public function __construct($tplDir=''){
         if($tplDir == ''){
-            $this->_tplDir = './'.C('APP_PATH').'/View/';
+            $this->_tplDir = './'.Config('APP_PATH').'/View/';
         }else{
             $this->_tplDir = $tplDir;
         }
-
+        $this->_tplCacheDir = './'.Config('APP_PATH').'/Cache/Tpl/';
     }
     /**
      * 为视图引擎设置一个模板变量
@@ -303,14 +409,21 @@ class View {
     }
     /**
      * 渲染模板并输出
+     * 2017-06-25 加入模板缓存
      * @param null|string $tplFile 模板文件路径，相对于App/View/文件的相对路径，不包含后缀名，例如index/index
      * @return void
      */
     public function display($tplFile) {
         $this->_viewPath = $this->_tplDir . $tplFile . '.php';
+        $cacheTplFile = $this->_tplCacheDir . md5($tplFile) . ".php";
+        
+        if(!is_file($cacheTplFile) || filemtime($this->_viewPath) > filemtime($cacheTplFile))
+            file_put_contents($cacheTplFile, $this->compiler($this->_viewPath));
+        
         unset($tplFile);
         extract($this->_data);
-        include $this->_viewPath;
+        #include $this->_viewPath;
+        include $cacheTplFile;
     }
     /**
      * 用于在模板文件中包含其他模板
@@ -320,7 +433,7 @@ class View {
      */
     public static function tplInclude($path, $data=array()){
         self::$tmpData = array(
-            'path' => C('APP_FULL_PATH') . '/View/' . $path . '.php',
+            'path' => Config('APP_FULL_PATH') . '/View/' . $path . '.php',
             'data' => $data,
         );
         unset($path);
@@ -328,6 +441,38 @@ class View {
         extract(self::$tmpData['data']);
         include self::$tmpData['path'];
     }
+    /**
+     * 编译模板
+     */
+    protected function compiler($tplfile) {
+        $content = file_get_contents($tplfile);
+        // 添加安全代码 代表入口文件进入的
+        $content = '<?php if (!defined(\'SINGLE_PHP_DEFINE\')) exit();?>' . $content;
+        $content = preg_replace(
+            array(
+                '/{\$([\w\[\]\'"\$]+)}/s', // 匹配 {$vo['info']}
+                '/{\:([^\}]+)}/s', // 匹配 {:func($vo['info'])}
+                '/<each[ ]+[\'"](.+)[\'"][ ]*>/', // 匹配 <each "$list as $v"></each>
+                '/<if[ ]*[\'"](.+)[\'"][ ]*>/', // 匹配 <if "$key == 1"></if>
+                '/<elseif[ ]*[\'"](.+)[\'"][ ]*>/',
+            ),
+            array(
+                '<?php echo $\\1;?>',
+                '<?php echo \\1;?>',
+                '<?php foreach( \\1 ){ ?>',
+                '<?php if( \\1 ){ ?>',
+                '<?php }elseif( \\1 ){ ?>',
+            ),
+            $content);
+        $content = str_replace(array('</if>', '<else />', '</each>', 'APP_URL'), array('<?php } ?>', '<?php }else{ ?>', '<?php } ?>', APP_URL), $content);
+        // 匹配 <include "Public/Menu"/>
+        $content = preg_replace_callback(
+            '/<include[ ]+[\'"](.+)[\'"][ ]*\/>/',
+            function ($matches) {return $this->compiler(file_get_contents($this->_tplDir . $matches[1]. '.php'));},
+            $content);
+        return $content;
+    }
+    
 }
 
 /**
@@ -351,7 +496,7 @@ class Widget {
      */
     public function __construct(){
         $this->_widgetName = get_class($this);
-        $dir = C('APP_FULL_PATH') . '/Widget/Tpl/';
+        $dir = Config('APP_FULL_PATH') . '/Widget/Tpl/';
         $this->_view = new View($dir);
     }
 
@@ -385,13 +530,18 @@ class Widget {
 
 /**
  * 数据库操作类
- * 使用方法：
- * DB::getInstance($conf)->query('select * from table');
- * 其中$conf是一个关联数组，需要包含以下key：
- * DB_HOST DB_USER DB_PWD DB_NAME
- * 可以用DB_PORT和DB_CHARSET来指定端口和编码，默认3306和utf8
+ * 使用方法： 
+ *      $db = M();
+ *      $db->query('select * from table');
+ * 
+ * 2015-06-25 数据库操作改为PDO，可以用于php7
  */
 class DB {
+    /**
+     * PDO 设置
+     * @var array
+     */
+    protected $options = array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::MYSQL_ATTR_MULTI_STATEMENTS => false);
     /**
      * 数据库链接
      * @var resource
@@ -403,16 +553,6 @@ class DB {
      */
     private $_lastSql;
     /**
-     * 上次sql语句影响的行数
-     * @var int
-     */
-    private $_rows;
-    /**
-     * 上次sql执行的错误
-     * @var string
-     */
-    private $_error;
-    /**
      * 实例数组
      * @var array
      */
@@ -423,21 +563,19 @@ class DB {
      * @param array $dbConf 配置数组
      */
     private function __construct($dbConf){
-        if(!isset($dbConf['DB_CHARSET'])){
+        if(empty($dbConf['DB_CHARSET'])){
             $dbConf['DB_CHARSET'] = 'utf8';
         }
-        $this->_db = mysql_connect($dbConf['DB_HOST'].':'.$dbConf['DB_PORT'],$dbConf['DB_USER'],$dbConf['DB_PWD']);
-        if($this->_db === false){
-            halt(mysql_error());
+        $this->options[\PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '" . Config("DB_CHARSET") . "'";
+        $dsn = Config("DB_TYPE").":host=".Config("DB_HOST").";port=".Config("DB_PORT").
+            ";dbname=".Config("DB_NAME").";charset=".Config("DB_CHARSET");
+        
+        try {
+            $this->_db = new \PDO($dsn, Config("DB_USER"), Config("DB_PWD"), $this->options) or die('数据库连接创建失败');
+        } catch (\PDOException $e) {    // 避免泄露密码等
+            throw new \ExtException($e->getMessage());
         }
-        $selectDb = mysql_select_db($dbConf['DB_NAME'],$this->_db);
-        if($selectDb === false){
-            halt(mysql_error());
-        }
-        mysql_set_charset($dbConf['DB_CHARSET']);
     }
-    private function __clone(){}
-
     /**
      * 获取DB类
      * @param array $dbConf 配置数组
@@ -453,74 +591,62 @@ class DB {
         }
         return self::$_instance[$key];
     }
+    public function beginTransaction() {$this->_db->beginTransaction();}
+    public function commit() {$this->_db->commit();}
+    public function rollBack() {$this->_db->rollBack();}
     /**
      * 转义字符串
      * @param string $str 要转义的字符串
      * @return string 转义后的字符串
      */
-    public function escape($str){
-        return mysql_real_escape_string($str, $this->_db);
-    }
+    public function escape($str) {return $this->_db->quote($str);}
+    public function close() {$this->_db= NULL;}
+
+    public function select($sql, $bind=array()) {return $this->execute($sql, $bind, 'select');}
+    public function insert($sql, $bind=array()) {return $this->execute($sql, $bind, 'insert');}
+    public function update($sql, $bind=array()) {return $this->execute($sql, $bind, 'update');}
+    public function delete($sql, $bind=array()) {return $this->execute($sql, $bind, 'delete');}
+    
     /**
-     * 查询，用于select语句
-     * @param string $sql 要查询的sql
-     * @return bool|array 查询成功返回对应数组，失败返回false
+     * 执行sql语句
+     * @param string $sql 要执行的sql
+     * @param array $bind 执行中的参数
+     * @return bool|int|array 执行成功返回数组、数量、自增id，失败返回false
      */
-    public function query($sql){
-        $this->_rows = 0;
-        $this->_error = '';
+    private function execute($sql, $bind=array(), $flag = '') {
         $this->_lastSql = $sql;
-        $this->logSql();
-        $res = mysql_query($sql,$this->_db);
-        if($res === false){
-            $this->_error = mysql_error($this->_db);
-            $this->logError();
-            return false;
-        }else{
-            $this->_rows = mysql_num_rows($res);
-            $result = array();
-            if($this->_rows >0) {
-                while($row = mysql_fetch_array($res, MYSQL_ASSOC)){
-                    $result[]   =   $row;
-                }
-                mysql_data_seek($res,0);
+        try {
+            $pre = $this->_db->prepare($sql);
+            if (!$pre) {
+                $this->error($this->_db, $sql);
             }
-            return $result;
+            foreach ($bind as $k => $v) {
+                $pre->bindValue($k, $v);
+            }
+            $re = $pre->execute();
+            if (!$re) {
+                $this->error($pre, $sql);
+            }
+            switch ($flag) {
+                case 'insert':return $this->_db->lastInsertId();
+                break;
+                case 'update':return $pre->rowCount();
+                break;
+                case 'delete':return $pre->rowCount();
+                break;
+                case 'select':return $pre->fetchAll(\PDO::FETCH_ASSOC);
+                break;
+                default:break;
+            }
+        } catch (\PDOException $e) {
+            $this->error($e, $sql);
         }
     }
-    /**
-     * 查询，用于insert/update/delete语句
-     * @param string $sql 要查询的sql
-     * @return bool|int 查询成功返回影响的记录数量，失败返回false
-     */
-    public function execute($sql) {
-        $this->_rows = 0;
-        $this->_error = '';
-        $this->_lastSql = $sql;
-        $this->logSql();
-        $result =   mysql_query($sql, $this->_db) ;
-        if ( false === $result) {
-            $this->_error = mysql_error($this->_db);
-            $this->logError();
-            return false;
-        } else {
-            $this->_rows = mysql_affected_rows($this->_db);
-            return $this->_rows;
-        }
+    private function error($e, $sql) {
+        throw new \ExtException(implode(', ', $e->errorInfo) . "\n[SQL]：" . $sql);
     }
-    /**
-     * 获取上一次查询影响的记录数量
-     * @return int 影响的记录数量
-     */
-    public function getRows(){
-        return $this->_rows;
-    }
-    /**
-     * 获取上一次insert后生成的自增id
-     * @return int 自增ID
-     */
-    public function getInsertId() {
-        return mysql_insert_id($this->_db);
+    function __destruct() {
+        $this->_db = null;
     }
     /**
      * 获取上一次查询的sql
@@ -529,27 +655,128 @@ class DB {
     public function getLastSql(){
         return $this->_lastSql;
     }
-    /**
-     * 获取上一次查询的错误信息
-     * @return string 错误信息
-     */
-    public function getError(){
-        return $this->_error;
-    }
+}
 
-    /**
-     * 记录sql到文件
-     */
-    private function logSql(){
-        Log::sql($this->_lastSql);
+/**
+ * 数据库模型
+ * $model = new UserModel("tablename");
+ * $model->where("sqlwhere conditon", array(vvv))->find();
+ * @author
+ */
+class Model{
+    protected $_db = null;          // 数据库连接
+    protected $_table = '';         // 表名
+    protected $_pk = '';            // 主键名
+    protected $_where = '';         // where语句
+    protected $_bind = array();     // 参数数组
+    protected $_order = '';
+    protected $_dbname = '';
+    
+    function __construct($tbl_name='', $db_name='', $pk="id") {
+        $this->_initialize();
+        if(empty($this->_table)) {
+            $this->_table = (empty($db_name) ? "" : $db_name.'.') . Config("TBL_PREFIX") . $tbl_name;
+        } else {
+            $this->_table = $this->_dbname .'.'. Config("TBL_PREFIX") . $this->_table;
+        }
+        if(empty($this->_pk)) $this->_pk = $pk;
+        $this->_db = db();
     }
-
+    // 回调方法 初始化模型
+    protected function _initialize() {}
     /**
-     * 记录错误日志到文件
+     * where条件
+     * @param string $sqlwhere     sql条件
+     * @param array  $bind         参数数组
+     * @return Model
      */
-    private function logError(){
-        $str = '[SQL ERR]'.$this->_error.' SQL:'.$this->_lastSql;
-        Log::warn($str);
+    public function where($sqlwhere, $bind=array()) {
+        $this->_where = $sqlwhere;
+        $this->_bind = $bind;
+        return $this;
+    }
+    public function order($order) {
+        $this->_order = $order;
+        return $this;
+    }
+    /** 获取一条记录
+     * @param unknown $id
+     * @return boolean|array
+     */
+    public function find($id=null) {
+        if ($id != null)
+            $this->where($this->_pk."=?", array($id));
+        $info = $this->select();
+        return count($info)>0 ? $info[0] : $info;
+    }
+    /** 获取多条记录
+     * @return boolean|array
+     */
+    public function select() {
+        $_sql = 'SELECT * FROM ' . $this->_table ." WHERE ". $this->_where;
+        if (! empty($this->_order)) $_sql .= " ORDER BY ". $this->_order;
+        $info = $this->_db->select($_sql, $this->_bind);
+        $this->clean();
+        return $info;
+    }
+    /** 更新数据
+     * @param array $data
+     * @return boolean|number
+     */
+    public function update($data) {
+        if (isset($data[$this->_pk])) {
+            $this->where($this->_pk."=:".$this->_pk, array(":".$this->_pk => $data[$this->_pk]));
+            unset($data[$this->_pk]);
+        }
+        if (empty($this->_where)) {
+            return false;
+        }
+        $keys = ''; $_bind = array();
+        foreach ($data as $k => $v) {
+            $keys .= "$k=:$k,";
+            $_bind[":$k"] = $v;
+        }
+        $keys = substr($keys, 0, -1);
+        $this->_bind = array_merge($this->_bind, $_bind);
+            
+        $_sql = 'UPDATE ' . $this->_table . " SET {$keys} WHERE ". $this->_where;
+        $info = $this->_db->update($_sql, $this->_bind);
+        $this->clean();
+        return $info;
+    }
+    /** 删除数据
+     * @param unknown $id
+     * @return boolean|number
+     */
+    public function delete($id=null) {
+        if ($id != null)
+            $this->where($this->_pk."=?", array($id));
+        $_sql = 'DELETE FROM ' . $this->_table ." WHERE ". $this->_where;
+        $info = $this->_db->delete($_sql, $this->_bind);
+        $this->clean();
+        return $info;
+    }
+    /** 插入数组，字段名=>值
+     * @param array $data
+     * @return boolean|number
+     */
+    public function insert($data) {
+        $keys = ''; $vals = ''; $_bind = array();
+        foreach ($data as $k => $v) {
+            if (is_null($v)) continue;
+            $keys .= "$k,";
+            $vals .= ":$k,";
+            $_bind[":$k"] = $v;
+        }
+        $keys = substr($keys, 0, -1);
+        $vals = substr($vals, 0, -1);
+        $_sql = 'INSERT INTO ' . $this->_table . " ($keys) VALUES ($vals)";
+        return $this->_db->insert($_sql, $_bind);
+    }
+    private function clean() {
+        $this->_where = "";
+        $this->_bind = array();
+        $this->_order = "";
     }
 }
 
@@ -566,22 +793,23 @@ class Log{
      * @param string $level 日志等级
      * @param bool $wf 是否为错误日志
      */
-    public static function write($msg, $level='DEBUG', $wf=false){
-        if(function_exists('sae_debug')){ //如果是SAE，则使用sae_debug函数打日志
-            $msg = "[{$level}]".$msg;
-            sae_set_display_errors(false);
-            sae_debug(trim($msg));
-            sae_set_display_errors(true);
-        }else{
-            $msg = date('[ Y-m-d H:i:s ]')."[{$level}]".$msg."\r\n";
-            $logPath = C('APP_FULL_PATH').'/Log/'.date('Ymd').'.log';
-            if($wf){
-                $logPath .= '.wf';
+    protected static function write($msg, $level='DEBUG', $wf=false){
+        if($wf || (null != Config('LOG_LEVEL') && in_array($level, Config('LOG_LEVEL')))) {
+            if(function_exists('sae_debug')){ //如果是SAE，则使用sae_debug函数打日志
+                $msg = "[{$level}]".$msg;
+                sae_set_display_errors(false);
+                sae_debug(trim($msg));
+                sae_set_display_errors(true);
+            }else{
+                $msg = date('[ Y-m-d H:i:s ]')." [{$level}] ".$msg."\r\n";
+                $logPath = Config('APP_FULL_PATH').'/Log/'.date('Ymd').'.log';
+                if($wf){
+                    $logPath .= '.wf';
+                }
+                file_put_contents($logPath, $msg, FILE_APPEND);
             }
-            file_put_contents($logPath, $msg, FILE_APPEND);
         }
     }
-
     /**
      * 打印fatal日志
      * @param string $msg 日志信息
@@ -589,7 +817,13 @@ class Log{
     public static function fatal($msg){
         self::write($msg, 'FATAL', true);
     }
-
+    /**
+     * 打印fatal日志
+     * @param string $msg 日志信息
+     */
+    public static function error($msg){
+        self::write($msg, 'ERROR', true);
+    }
     /**
      * 打印warning日志
      * @param string $msg 日志信息
@@ -597,7 +831,6 @@ class Log{
     public static function warn($msg){
         self::write($msg, 'WARN', true);
     }
-
     /**
      * 打印notice日志
      * @param string $msg 日志信息
@@ -605,21 +838,12 @@ class Log{
     public static function notice($msg){
         self::write($msg, 'NOTICE');
     }
-
     /**
      * 打印debug日志
      * @param string $msg 日志信息
      */
     public static function debug($msg){
         self::write($msg, 'DEBUG');
-    }
-
-    /**
-     * 打印sql日志
-     * @param string $msg 日志信息
-     */
-    public static function sql($msg){
-        self::write($msg, 'SQL');
     }
 }
 
