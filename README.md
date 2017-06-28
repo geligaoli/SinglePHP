@@ -20,7 +20,7 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
     加入了命令行模式，方便写脚本用。
 
 
-目前SinglePHP-Ex由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
+目前 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
 
 ### 文档
 
