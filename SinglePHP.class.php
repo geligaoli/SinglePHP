@@ -1,5 +1,10 @@
 <?php
 /**
+ * SinglePHP-Ex 单php文件精简框架。
+ * https://github.com/geligaoli/SinglePHP-Ex
+ */
+
+/**
  * 获取和设置配置参数 支持批量定义
  * 如果$key是关联型数组，则会按K-V的形式写入配置
  * 如果$key是数字索引数组，则返回对应的配置数组
@@ -179,12 +184,12 @@ class SinglePHP {
             define("ACTION_NAME", isset($pathInfoArr[1]) ? $pathInfoArr[1]: 'Index');
         }
         if(!class_exists(MODULE_NAME.'Controller')){
-            halt('控制器'.MODULE_NAME.'不存在');
+            halt('控制器 '.MODULE_NAME.' 不存在');
         }
         $controllerClass = MODULE_NAME.'Controller';
         $controller = new $controllerClass();
         if(!method_exists($controller, ACTION_NAME.'Action')){
-            halt('方法'.ACTION_NAME.'不存在');
+            halt('方法 '.ACTION_NAME.' 不存在');
         }
         call_user_func(array($controller, ACTION_NAME.'Action'));
     }
@@ -688,7 +693,7 @@ class Model{
      * where条件
      * @param string|array $sqlwhere     sql条件|或查询数组
      * @param array  $bind               参数数组
-     * @return Model
+     * @return Model|where sql
      */
     public function where($sqlwhere, $bind=array()) {
         if (empty($sqlwhere))
@@ -821,26 +826,19 @@ class Model{
  */
 class Log{
     /**
-     * 打日志，支持SAE环境
+     * 打日志
      * @param string $msg 日志内容
      * @param string $level 日志等级
      * @param bool $wf 是否为错误日志
      */
     protected static function write($msg, $level='DEBUG', $wf=false){
         if($wf || (null != Config('LOG_LEVEL') && in_array($level, Config('LOG_LEVEL')))) {
-            if(function_exists('sae_debug')){ //如果是SAE，则使用sae_debug函数打日志
-                $msg = "[{$level}]".$msg;
-                sae_set_display_errors(false);
-                sae_debug(trim($msg));
-                sae_set_display_errors(true);
-            }else{
-                $msg = date('[ Y-m-d H:i:s ]')." [{$level}] ".$msg."\r\n";
-                $logPath = APP_FULL_PATH.'/Log/'.date('Ymd').'.log';
-                if($wf){
-                    $logPath .= '.wf';
-                }
-                file_put_contents($logPath, $msg, FILE_APPEND);
+            $msg = date('[ Y-m-d H:i:s ]')." [{$level}] ".$msg."\r\n";
+            $logPath = APP_FULL_PATH.'/Log/'.date('Ymd').'.log';
+            if($wf){
+                $logPath .= '.wf';
             }
+            file_put_contents($logPath, $msg, FILE_APPEND);
         }
     }
     /**
@@ -862,7 +860,7 @@ class Log{
      * @param string $msg 日志信息
      */
     public static function warn($msg){
-        self::write($msg, 'WARN', true);
+        self::write($msg, 'WARN');
     }
     /**
      * 打印notice日志
