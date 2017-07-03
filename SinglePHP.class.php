@@ -52,19 +52,35 @@ function Widget($name, $data = array()){
 
 /**
  * 终止程序运行
- * @param string $str 终止原因
- * @param bool $display 是否显示调用栈，默认不显示
+ * @param string|array $err 终止原因 or Error Array
  * @return void
  */
-function halt($str, $display=false){
-    Log::fatal($str.' debug_backtrace:'.var_export(debug_backtrace(), true));
-    header("Content-Type:text/html; charset=utf-8");
-    if($display){
-        echo "<pre>";
-        debug_print_backtrace();
-        echo "</pre>";
+function halt($err) {
+    $e = array();
+    if (APP_DEBUG || IS_CLI) {
+        if (is_array($err)) {
+            $e = $err;
+        } else {
+            $trace = debug_backtrace();
+            $e['message'] = $err;
+            $e['file'] = $trace[0]['file'];
+            $e['line'] = $trace[0]['line'];
+            ob_start();
+            debug_print_backtrace();
+            $e['trace'] = ob_get_clean();
+        }
+        
+        if (IS_CLI) {
+            exit((DIRECTORY_SEPARATOR=='\\' ? iconv('UTF-8', 'gbk', $e['message']) : $e['message'])
+                . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
+        }
+    } else {
+        $e['message'] = is_array($err) ? $err['message'] : $err;
     }
-    echo $str;
+    Log::fatal($e['message'].' debug_backtrace:'.$e['trace']);
+    
+    header("Content-Type:text/html; charset=utf-8");
+    echo nl2br(htmlspecialchars(print_r($e, true), ENT_QUOTES)); // . '<pre>' . '</pre>';
     exit;
 }
 
@@ -102,21 +118,10 @@ function includeIfExist($path){
  */
 class SinglePHP {
     /**
-     * 控制器
-     * @var string
-     */
-    private $c;
-    /**
-     * Action
-     * @var string
-     */
-    private $a;
-    /**
      * 单例
      * @var SinglePHP
      */
     private static $_instance;
-
     /**
      * 构造函数，初始化配置
      * @param array $conf
@@ -125,7 +130,6 @@ class SinglePHP {
         Config($conf);
     }
     private function __clone(){}
-
     /**
      * 获取单例
      * @param array $conf
@@ -147,18 +151,19 @@ class SinglePHP {
         set_error_handler('\SinglePHP::appError');
         set_exception_handler('\SinglePHP::appException');
         
-        define('APP_URL', str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']));
+        defined('APP_DEBUG') || define('APP_DEBUG',false);
+        define('__APP__',PHP_FILE);
+        
+        define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
         define('IS_AJAX', ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
         define('SINGLE_PHP_DEFINE', "1");
-        defined('APP_DEBUG') || define('APP_DEBUG',false);
+        define('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH').'/');
+        
         date_default_timezone_set("Asia/Shanghai");
         
-        if(Config('USE_SESSION') == true){
-            session_start();
-        }
-        Config('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH').'/');
-        includeIfExist( Config('APP_FULL_PATH').'/common.php');
+        if(Config('USE_SESSION') == true) session_start();
+        includeIfExist(APP_FULL_PATH.'/common.php');
         $pathMod = Config('PATH_MOD');
         $pathMod = empty($pathMod)?'NORMAL':$pathMod;
         spl_autoload_register(array('SinglePHP', 'autoload'));
@@ -174,31 +179,23 @@ class SinglePHP {
             }
         }
         if(strcmp(strtoupper($pathMod),'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])){
-            $this->c = isset($_GET['c'])?$_GET['c']:'Index';
-            $this->a = isset($_GET['a'])?$_GET['a']:'Index';
+            define("MODULE_NAME", isset($_GET['c'])?$_GET['c']:'Index');
+            define("ACTION_NAME", isset($_GET['a'])?$_GET['a']:'Index');
         }else{
             $pathInfo = isset($_SERVER['PATH_INFO'])?$_SERVER['PATH_INFO']:'';
             $pathInfoArr = explode('/',trim($pathInfo,'/'));
-            if(isset($pathInfoArr[0]) && $pathInfoArr[0] !== ''){
-                $this->c = $pathInfoArr[0];
-            }else{
-                $this->c = 'Index';
-            }
-            if(isset($pathInfoArr[1])){
-                $this->a = $pathInfoArr[1];
-            }else{
-                $this->a = 'Index';
-            }
+            define("MODULE_NAME", (isset($pathInfoArr[0]) && $pathInfoArr[0] !== '') ? $pathInfoArr[0]: 'Index');
+            define("ACTION_NAME", isset($pathInfoArr[1]) ? $pathInfoArr[1]: 'Index');
         }
-        if(!class_exists($this->c.'Controller')){
-            halt('控制器'.$this->c.'不存在');
+        if(!class_exists(MODULE_NAME.'Controller')){
+            halt('控制器'.MODULE_NAME.'不存在');
         }
-        $controllerClass = $this->c.'Controller';
+        $controllerClass = MODULE_NAME.'Controller';
         $controller = new $controllerClass();
-        if(!method_exists($controller, $this->a.'Action')){
-            halt('方法'.$this->a.'不存在');
+        if(!method_exists($controller, ACTION_NAME.'Action')){
+            halt('方法'.ACTION_NAME.'不存在');
         }
-        call_user_func(array($controller,$this->a.'Action'));
+        call_user_func(array($controller, ACTION_NAME.'Action'));
     }
 
     /**
@@ -207,13 +204,13 @@ class SinglePHP {
      */
     public static function autoload($class){
         if(substr($class,-10)=='Controller'){
-            includeIfExist(Config('APP_FULL_PATH').'/Controller/'.$class.'.class.php');
+            includeIfExist(APP_FULL_PATH.'/Controller/'.$class.'.class.php');
         }elseif(substr($class,-5)=='Model'){
-            includeIfExist(Config('APP_FULL_PATH').'/Model/'.$class.'.class.php');
+            includeIfExist(APP_FULL_PATH.'/Model/'.$class.'.class.php');
         }elseif(substr($class,-6)=='Widget'){
-            includeIfExist(Config('APP_FULL_PATH').'/Widget/'.$class.'.class.php');
+            includeIfExist(APP_FULL_PATH.'/Widget/'.$class.'.class.php');
         }else{
-            includeIfExist(Config('APP_FULL_PATH').'/Lib/'.$class.'.class.php');
+            includeIfExist(APP_FULL_PATH.'/Lib/'.$class.'.class.php');
         }
     }
     // 接受PHP内部回调异常处理
@@ -229,16 +226,14 @@ class SinglePHP {
             $err['line'] = $e->getLine();
         }
         $err['trace'] = $e->getTraceAsString();
-        Log::error($err['message']);
-        self::halt($err);
+        halt($err);
     }
     // 自定义错误处理
     static function appError($errno, $errstr, $errfile, $errline) {
         $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
         if (in_array($errno, $haltArr)) {
             $errStr = "Errno: $errno $errstr File: $errfile lineno: $errline.";
-            Log::error($errStr);
-            self::halt($errStr);
+            halt($errStr);
         }
     }
     // 致命错误捕获
@@ -246,34 +241,8 @@ class SinglePHP {
         $e = error_get_last();
         $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
         if ($e && in_array($e['type'], $haltArr)) {
-            self::halt($e);
+            halt($e);
         }
-    }
-    // 错误输出
-    static function halt($err) {
-        $e = array();
-        if (APP_DEBUG || IS_CLI) {
-            if (!is_array($err)) {
-                $trace = debug_backtrace();
-                $e['message'] = $err;
-                $e['file'] = $trace[0]['file'];
-                $e['line'] = $trace[0]['line'];
-                ob_start();
-                debug_print_backtrace();
-                $e['trace'] = ob_get_clean();
-            } else {
-                $e = $err;
-            }
-        } else {
-            $e['message'] = is_array($err) ? $err['message'] : $err;
-        }
-        if (IS_CLI) {
-            exit((DIRECTORY_SEPARATOR=='\\' ? iconv('UTF-8', 'gbk', $e['message']) : $e['message'])
-                . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
-        }
-        
-        echo nl2br(htmlspecialchars(print_r($e, true), ENT_QUOTES)); // . '<pre>' . '</pre>';
-        exit;
     }
 }
 
@@ -309,14 +278,9 @@ class Controller {
      */
     protected function display($tpl=''){
         if($tpl === ''){
-            $trace = debug_backtrace();
-            $controller = substr($trace[1]['class'], 0, -10);
-            $action = substr($trace[1]['function'], 0 , -6);
-            $tpl = $controller . '/' . $action;
+            $tpl = MODULE_NAME. '/' . ACTION_NAME;
         }elseif(strpos($tpl, '/') === false){
-            $trace = debug_backtrace();
-            $controller = substr($trace[1]['class'], 0, -10);
-            $tpl = $controller . '/' . $tpl;
+            $tpl = MODULE_NAME. '/' . $tpl;
         }
         $this->_view->display($tpl);
     }
@@ -433,7 +397,7 @@ class View {
      */
     public static function tplInclude($path, $data=array()){
         self::$tmpData = array(
-            'path' => Config('APP_FULL_PATH') . '/View/' . $path . '.php',
+            'path' => APP_FULL_PATH . '/View/' . $path . '.php',
             'data' => $data,
         );
         unset($path);
@@ -496,7 +460,7 @@ class Widget {
      */
     public function __construct(){
         $this->_widgetName = get_class($this);
-        $dir = Config('APP_FULL_PATH') . '/Widget/Tpl/';
+        $dir = APP_FULL_PATH . '/Widget/Tpl/';
         $this->_view = new View($dir);
     }
 
@@ -535,6 +499,7 @@ class Widget {
  *      $db->query('select * from table');
  * 
  * 2015-06-25 数据库操作改为PDO，可以用于php7
+ * 或者使用 Medoo，支持多种数据库
  */
 class DB {
     /**
@@ -557,7 +522,6 @@ class DB {
      * @var array
      */
     private static $_instance = array();
-
     /**
      * 构造函数
      * @param array $dbConf 配置数组
@@ -691,8 +655,45 @@ class Model{
      * @return Model
      */
     public function where($sqlwhere, $bind=array()) {
-        $this->_where = $sqlwhere;
-        $this->_bind = $bind;
+        if (is_array($sqlwhere)) {
+            $item = array();
+            $this->_bind = array();
+            foreach ($sqlwhere as $k => $v) {
+                if (is_array($v)) {
+                    $exp = strtoupper($v[0]); //  in like
+                    if (preg_match('/^(NOT IN|IN)$/', $exp)) {
+                        if (is_string($v[1])) $v[1] = explode(',', $v[1]);
+                        $vals = implode(',', $this->_db->quote($v[1]));
+                        $item[] = "$k $exp ($vals)";
+                    } elseif (preg_match('/^(=|!=|<|<>|<=|>|>=)$/', $exp)) {
+                        $k1 = count($this->_bind);
+                        $item[] = "$k $exp :$k1";
+                        $this->_bind[":$k1"] = $v[1];
+                    } elseif (preg_match('/^(BETWEEN|NOT BETWEEN)$/', $exp)) {
+                        $tmp = is_string($v[1]) ? explode(',', $v[1]) : $v[1];
+                        $k1 = count($this->_bind);
+                        $k2 = $k1 + 1;
+                        $item[] = "($k $exp :$k1 AND :$k2)";
+                        $this->_bind[":$k1"] = $tmp[0];
+                        $this->_bind[":$k2"] = $tmp[1];
+                    } elseif (preg_match('/^(LIKE|NOT LIKE)$/', $exp)) {
+                        $wyk = ':' . count($this->_bind);
+                        $item[] = "$k $exp $wyk";
+                        $this->_bind[$wyk] = $v[1];
+                    } else {
+                        throw new \Exception("exp error", 1);
+                    }
+                } else {
+                    $wyk = ':' . count($this->_bind);
+                    $item[] = "$k=$wyk";
+                    $this->_bind[$wyk] = $v;
+                }
+            }
+            $this->_where = '(' . implode(" AND ", $item) . ')';
+        } else {
+            $this->_where = $sqlwhere;
+            $this->_bind = $bind;
+        }
         return $this;
     }
     public function order($order) {
@@ -802,7 +803,7 @@ class Log{
                 sae_set_display_errors(true);
             }else{
                 $msg = date('[ Y-m-d H:i:s ]')." [{$level}] ".$msg."\r\n";
-                $logPath = Config('APP_FULL_PATH').'/Log/'.date('Ymd').'.log';
+                $logPath = APP_FULL_PATH.'/Log/'.date('Ymd').'.log';
                 if($wf){
                     $logPath .= '.wf';
                 }
