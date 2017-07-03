@@ -93,15 +93,6 @@ function db(){
     return DB::getInstance($dbConf);
 }
 
-// /**
-//  * 创建Model实例
-//  * @param unknown $model
-//  */
-// function Model($model) {
-//     $modelClass = $model.'Model';
-//     return new $modelClass($model);
-// }
-
 /**
  * 如果文件存在就include进来
  * @param string $path 文件路径
@@ -502,21 +493,14 @@ class Widget {
  * 或者使用 Medoo，支持多种数据库
  */
 class DB {
+    private $_db;       /** 数据库链接 */
+    private $_lastSql;  /** 保存最后一条sql */
+    private $autocount=false, $pagesize=20, $pageno=-1, $totalrows=-1; /** 是否自动计算总数，页数，页大小，总条数 */
     /**
      * PDO 设置
      * @var array
      */
     protected $options = array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::MYSQL_ATTR_MULTI_STATEMENTS => false);
-    /**
-     * 数据库链接
-     * @var resource
-     */
-    private $_db;
-    /**
-     * 保存最后一条sql
-     * @var string
-     */
-    private $_lastSql;
     /**
      * 实例数组
      * @var array
@@ -530,7 +514,8 @@ class DB {
         if(empty($dbConf['DB_CHARSET'])){
             $dbConf['DB_CHARSET'] = 'utf8';
         }
-        $this->options[\PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '" . Config("DB_CHARSET") . "'";
+        if ("mysql"==strtolower(Config("DB_TYPE")))
+            $this->options[\PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '" . Config("DB_CHARSET") . "'";
         $dsn = Config("DB_TYPE").":host=".Config("DB_HOST").";port=".Config("DB_PORT").
             ";dbname=".Config("DB_NAME").";charset=".Config("DB_CHARSET");
         
@@ -566,7 +551,34 @@ class DB {
     public function escape($str) {return $this->_db->quote($str);}
     public function close() {$this->_db= NULL;}
 
-    public function select($sql, $bind=array()) {return $this->execute($sql, $bind, 'select');}
+    public function select($sql, $bind=array()) {
+        if ($this->pageno > 0) {
+            $pagers = array();
+            if ($this->autocount) {
+                $sqlcount = preg_replace("/select[\s|(].+?[\s|)]from([\s|(])/is", "SELECT COUNT(*) AS num FROM $1", $sql, 1);
+                $total = $this->execute($sqlcount, $bind, 'select');
+                $this->totalrows = empty($total) ? 0 : $total[0]["num"];
+            }
+            if ($this->totalrows != 0) {
+                $dbtype = strtolower(Config("DB_TYPE"));
+                if (in_array($dbtype, ['oci', 'sqlsrv', 'firebird'])) { // oracle12c mssql2008 firebird3
+                    if ($this->pageno == 1)
+                        $sql .= ' FETCH FIRST '. $this->pagesize .' ROWS ONLY';
+                    else
+                        $sql .= ' OFFSET '. ($this->pagesize*($this->pageno-1)) .' ROWS FETCH NEXT '. $this->pagesize .' ROWS ONLY';
+                } else {                                                // mysql sqlite postgresql HSQLDB H2
+                    if ($this->pageno == 1)
+                        $sql .= ' LIMIT '. $this->pagesize;
+                    else
+                        $sql .= ' LIMIT '. $this->pagesize .' OFFSET '. ($this->pagesize*($this->pageno-1));
+                }
+                $pagers = $this->execute($sql, $bind, 'select');
+            }
+            $this->autocount=false; $this->pagesize=20; $this->pageno=-1; $this->totalrows=-1;
+            return $pagers;
+        } else
+            return $this->execute($sql, $bind, 'select');
+    }
     public function insert($sql, $bind=array()) {return $this->execute($sql, $bind, 'insert');}
     public function update($sql, $bind=array()) {return $this->execute($sql, $bind, 'update');}
     public function delete($sql, $bind=array()) {return $this->execute($sql, $bind, 'delete');}
@@ -616,8 +628,33 @@ class DB {
      * 获取上一次查询的sql
      * @return string sql
      */
-    public function getLastSql(){
+    public function getLastSql() {
         return $this->_lastSql;
+    }
+    /**
+     * 分页时记录总条数
+     * @return number
+     */
+    public function totalrows() {
+        return $this->totalrows;
+    }
+    /**
+     * 分页时自动计算总条数
+     * @return DB
+     */
+    public function autocount() {
+        $this->autocount = true;
+        return $this;
+    }
+    /**
+     * 分页参数
+     * @param number $pageno
+     * @param number $pagesize
+     * @return DB
+     */
+    public function page($pageno, $pagesize=20) {
+        $this->pageno=$pageno; $this->pagesize=$pagesize;
+        return $this;
     }
 }
 
@@ -633,7 +670,6 @@ class Model{
     protected $_pk = '';            // 主键名
     protected $_where = '';         // where语句
     protected $_bind = array();     // 参数数组
-    protected $_order = '';
     protected $_dbname = '';
     
     function __construct($tbl_name='', $db_name='', $pk="id") {
@@ -650,11 +686,13 @@ class Model{
     protected function _initialize() {}
     /**
      * where条件
-     * @param string $sqlwhere     sql条件
-     * @param array  $bind         参数数组
+     * @param string|array $sqlwhere     sql条件|或查询数组
+     * @param array  $bind               参数数组
      * @return Model
      */
     public function where($sqlwhere, $bind=array()) {
+        if (empty($sqlwhere))
+            return $this->_where;
         if (is_array($sqlwhere)) {
             $item = array();
             $this->_bind = array();
@@ -696,10 +734,6 @@ class Model{
         }
         return $this;
     }
-    public function order($order) {
-        $this->_order = $order;
-        return $this;
-    }
     /** 获取一条记录
      * @param unknown $id
      * @return boolean|array
@@ -715,7 +749,6 @@ class Model{
      */
     public function select() {
         $_sql = 'SELECT * FROM ' . $this->_table ." WHERE ". $this->_where;
-        if (! empty($this->_order)) $_sql .= " ORDER BY ". $this->_order;
         $info = $this->_db->select($_sql, $this->_bind);
         $this->clean();
         return $info;
@@ -777,7 +810,6 @@ class Model{
     private function clean() {
         $this->_where = "";
         $this->_bind = array();
-        $this->_order = "";
     }
 }
 
