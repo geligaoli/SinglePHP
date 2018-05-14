@@ -113,11 +113,7 @@ function includeIfExist($path){
  * 总控类
  */
 class SinglePHP {
-    /**
-     * 单例
-     * @var SinglePHP
-     */
-    private static $_instance;
+    private static $_instance;      // 单例
     /**
      * 构造函数，初始化配置
      * @param array $conf
@@ -125,16 +121,14 @@ class SinglePHP {
     private function __construct($conf){
         Config($conf);
     }
-    private function __clone(){}
     /**
      * 获取单例
      * @param array $conf
      * @return SinglePHP
      */
     public static function getInstance($conf){
-        if(!(self::$_instance instanceof self)){
+        if(!(self::$_instance instanceof self))
             self::$_instance = new self($conf);
-        }
         return self::$_instance;
     }
     /**
@@ -148,13 +142,10 @@ class SinglePHP {
         set_exception_handler('\SinglePHP::appException');
         
         defined('APP_DEBUG') || define('APP_DEBUG',false);
-        define('__APP__',PHP_FILE);
-        
         define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
+        define('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH'));
         define('IS_AJAX', ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
-        define('SINGLE_PHP_DEFINE', "1");
-        define('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH').'/');
         
         date_default_timezone_set("Asia/Shanghai");
         
@@ -236,9 +227,8 @@ class SinglePHP {
     static function appFatal() {
         $e = error_get_last();
         $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
-        if ($e && in_array($e['type'], $haltArr)) {
+        if ($e && in_array($e['type'], $haltArr))
             halt($e);
-        }
     }
 }
 
@@ -246,12 +236,7 @@ class SinglePHP {
  * 控制器类
  */
 class Controller {
-    /**
-     * 视图实例
-     * @var View
-     */
-    private $_view;
-
+    private $_view;     // 视图实例
     /**
      * 构造函数，初始化视图实例，调用hook
      */
@@ -259,7 +244,6 @@ class Controller {
         $this->_view = new View();
         $this->_init();
     }
-
     /**
      * 前置hook
      */
@@ -293,8 +277,8 @@ class Controller {
      * 将数据用json格式输出至浏览器，并停止执行代码
      * @param array $data 要输出的数据
      */
-    protected function ajax($data){
-        $jsondata = is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE);
+    protected function ajax($json){
+        $jsondata = is_string($json) ? $json : json_encode($json, JSON_UNESCAPED_UNICODE);
         header('Content-Type: application/json; charset=utf-8');
         header('Content-Length: '. strlen($jsondata));
         echo ($jsondata);
@@ -306,11 +290,6 @@ class Controller {
         echo ($xmlstr);
         exit;
     }
-    /**
-     * 重定向至指定url
-     * @param string $url 要跳转的url
-     * @param void
-     */
     protected function redirect($url){
         header("Location: $url");
         exit;
@@ -321,42 +300,20 @@ class Controller {
  * 视图类
  */
 class View {
-    /**
-     * 视图文件目录
-     * @var string
-     */
-    private $_tplDir;
-    /**
-     * 编译后模板缓存目录
-     * @var string
-     */
-    private $_tplCacheDir;
-    /**
-     * 视图文件路径
-     * @var string
-     */
-    private $_viewPath;
-    /**
-     * 视图变量列表
-     * @var array
-     */
-    private $_data = array();
-    /**
-     * 给tplInclude用的变量列表
-     * @var array
-     */
-    private static $tmpData;
-
+    private $_tplDir;           /** 视图文件目录 */
+    private $_tplCacheDir;      /** 编译后模板缓存目录 */
+    private $_viewPath;         /** 视图文件路径 */
+    private $_data = array();   /** 视图变量列表 */
     /**
      * @param string $tplDir
      */
     public function __construct($tplDir=''){
         if($tplDir == ''){
-            $this->_tplDir = './'.Config('APP_PATH').'/View/';
+            $this->_tplDir = APP_FULL_PATH.'/View/';
         }else{
             $this->_tplDir = $tplDir;
         }
-        $this->_tplCacheDir = './'.Config('APP_PATH').'/Cache/Tpl/';
+        $this->_tplCacheDir = APP_FULL_PATH.'/Cache/Tpl/';
     }
     /**
      * 为视图引擎设置一个模板变量
@@ -386,28 +343,13 @@ class View {
         include $cacheTplFile;
     }
     /**
-     * 用于在模板文件中包含其他模板
-     * @param string $path 相对于View目录的路径
-     * @param array $data 传递给子模板的变量列表，key为变量名，value为变量值
-     * @return void
-     */
-    public static function tplInclude($path, $data=array()){
-        self::$tmpData = array(
-            'path' => APP_FULL_PATH . '/View/' . $path . '.php',
-            'data' => $data,
-        );
-        unset($path);
-        unset($data);
-        extract(self::$tmpData['data']);
-        include self::$tmpData['path'];
-    }
-    /**
      * 编译模板
      */
-    protected function compiler($tplfile) {
+    protected function compiler($tplfile, $flag=true) {
         $content = file_get_contents($tplfile);
         // 添加安全代码 代表入口文件进入的
-        $content = '<?php if (!defined(\'SINGLE_PHP_DEFINE\')) exit();?>' . $content;
+        if ($flag)
+            $content = '<?php if (!defined(\'APP_FULL_PATH\')) exit();?>' . $content;
         $content = preg_replace(
             array(
                 '/{\$([\w\[\]\'"\$]+)}/s', // 匹配 {$vo['info']}
@@ -428,7 +370,7 @@ class View {
         // 匹配 <include "Public/Menu"/>
         $content = preg_replace_callback(
             '/<include[ ]+[\'"](.+)[\'"][ ]*\/>/',
-            function ($matches) {return $this->compiler(file_get_contents($this->_tplDir . $matches[1]. '.php'));},
+            function ($matches) {return $this->compiler($this->_tplDir . $matches[1]. '.php', false);},
             $content);
         return $content;
     }
@@ -440,16 +382,8 @@ class View {
  * 使用时需继承此类，重写invoke方法，并在invoke方法中调用display
  */
 class Widget {
-    /**
-     * 视图实例
-     * @var View
-     */
-    protected $_view;
-    /**
-     * Widget名
-     * @var string
-     */
-    protected $_widgetName;
+    protected $_view;           /** 视图实例 */
+    protected $_widgetName;     /** Widget名 */
 
     /**
      * 构造函数，初始化视图实例
@@ -491,26 +425,22 @@ class Widget {
 /**
  * 数据库操作类
  * 使用方法： 
- *      $db = M();
+ *      $db = db();
  *      $db->query('select * from table');
  * 
  * 2015-06-25 数据库操作改为PDO，可以用于php7
  * 或者使用 Medoo，支持多种数据库
  */
 class DB {
-    private $_db;       /** 数据库链接 */
-    private $_lastSql;  /** 保存最后一条sql */
+    private static $_instance = array();    /** 实例数组 */
+    private $_db;                           /** 数据库链接 */
+    private $_lastSql;                      /** 保存最后一条sql */
     private $autocount=false, $pagesize=20, $pageno=-1, $totalrows=-1; /** 是否自动计算总数，页数，页大小，总条数 */
     /**
      * PDO 设置
      * @var array
      */
     protected $options = array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::MYSQL_ATTR_MULTI_STATEMENTS => false);
-    /**
-     * 实例数组
-     * @var array
-     */
-    private static $_instance = array();
     /**
      * 构造函数
      * @param array $dbConf 配置数组
@@ -527,7 +457,7 @@ class DB {
         try {
             $this->_db = new \PDO($dsn, Config("DB_USER"), Config("DB_PWD"), $this->options) or die('数据库连接创建失败');
         } catch (\PDOException $e) {    // 避免泄露密码等
-            throw new \ExtException($e->getMessage());
+            throw new \Exception($e->getMessage());
         }
     }
     /**
@@ -560,7 +490,7 @@ class DB {
         if ($this->pageno > 0) {
             $pagers = array();
             if ($this->autocount) {
-                $sqlcount = preg_replace("/select[\s|(].+?[\s|)]from([\s|(])/is", "SELECT COUNT(*) AS num FROM $1", $sql, 1);
+                $sqlcount = preg_replace("/select[\s(].+?[\s)]from([\s(])/is", "SELECT COUNT(*) AS num FROM $1", $sql, 1);
                 $total = $this->execute($sqlcount, $bind, 'select');
                 $this->totalrows = empty($total) ? 0 : $total[0]["num"];
             }
@@ -624,7 +554,7 @@ class DB {
         }
     }
     private function error($e, $sql) {
-        throw new \ExtException(implode(', ', $e->errorInfo) . "\n[SQL]：" . $sql);
+        throw new \Exception(implode(', ', $e->errorInfo) . "\n[SQL]：" . $sql);
     }
     function __destruct() {
         $this->_db = null;
@@ -679,11 +609,7 @@ class Model{
     
     function __construct($tbl_name='', $db_name='', $pk="id") {
         $this->_initialize();
-        if(empty($this->_table)) {
-            $this->_table = (empty($db_name) ? "" : $db_name.'.') . Config("TBL_PREFIX") . $tbl_name;
-        } else {
-            $this->_table = $this->_dbname .'.'. Config("TBL_PREFIX") . $this->_table;
-        }
+        $this->_table = (empty($db_name) ? "" : $db_name.'.') . Config("TBL_PREFIX") . ( empty($this->_table) ? $tbl_name : $this->_table);
         if(empty($this->_pk)) $this->_pk = $pk;
         $this->_db = db();
     }
@@ -693,15 +619,14 @@ class Model{
      * where条件
      * @param string|array $sqlwhere     sql条件|或查询数组
      * @param array  $bind               参数数组
-     * @return Model|where sql
+     * @return Model
      */
     public function where($sqlwhere, $bind=array()) {
-        if (empty($sqlwhere))
-            return $this->_where;
         if (is_array($sqlwhere)) {
             $item = array();
             $this->_bind = array();
             foreach ($sqlwhere as $k => $v) {
+                if (substr($k,0,1)=='_') continue;
                 if (is_array($v)) {
                     $exp = strtoupper($v[0]); //  in like
                     if (preg_match('/^(NOT IN|IN)$/', $exp)) {
@@ -732,7 +657,8 @@ class Model{
                     $this->_bind[$wyk] = $v;
                 }
             }
-            $this->_where = '(' . implode(" AND ", $item) . ')';
+            $this->_where = ' (' . implode(" AND ", $item) . ') ';
+            $this->_where .= isset($sqlwhere["_sql"]) ? $sqlwhere["_sql"] : "";
         } else {
             $this->_where = $sqlwhere;
             $this->_bind = $bind;
@@ -745,7 +671,7 @@ class Model{
      */
     public function find($id=null) {
         if ($id != null)
-            $this->where($this->_pk."=?", array($id));
+            $this->where(array($this->_pk => $id));
         $info = $this->select();
         return count($info)>0 ? $info[0] : $info;
     }
@@ -789,7 +715,7 @@ class Model{
      */
     public function delete($id=null) {
         if ($id != null)
-            $this->where($this->_pk."=?", array($id));
+            $this->where(array($this->_pk => $id));
         $_sql = 'DELETE FROM ' . $this->_table ." WHERE ". $this->_where;
         $info = $this->_db->delete($_sql, $this->_bind);
         $this->clean();
@@ -878,31 +804,3 @@ class Log{
     }
 }
 
-/**
- * ExtException类，记录额外的异常信息
- */
-class ExtException extends Exception{
-    /**
-     * @var array
-     */
-    protected $extra;
-
-    /**
-     * @param string $message
-     * @param array $extra
-     * @param int $code
-     * @param null $previous
-     */
-    public function __construct($message = "", $extra = array(), $code = 0, $previous = null){
-        $this->extra = $extra;
-        parent::__construct($message, $code, $previous);
-    }
-
-    /**
-     * 获取额外的异常信息
-     * @return array
-     */
-    public function getExtra(){
-        return $this->extra;
-    }
-}
