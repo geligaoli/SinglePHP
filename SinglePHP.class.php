@@ -74,7 +74,7 @@ function halt($err) {
             debug_print_backtrace();
             $e['trace'] = ob_get_clean();
         }
-        
+
         if (IS_CLI) {
             exit((DIRECTORY_SEPARATOR=='\\' ? iconv('UTF-8', 'gbk', $e['message']) : $e['message'])
                 . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
@@ -83,7 +83,7 @@ function halt($err) {
         $e['message'] = is_array($err) ? $err['message'] : $err;
     }
     Log::fatal($e['message'].' debug_backtrace:'.$e['trace']);
-    
+
     header("Content-Type:text/html; charset=utf-8");
     echo nl2br(htmlspecialchars(print_r($e, true), ENT_QUOTES)); // . '<pre>' . '</pre>';
     exit;
@@ -140,21 +140,21 @@ class SinglePHP {
         register_shutdown_function('\SinglePHP::appFatal'); // 错误和异常处理
         set_error_handler('\SinglePHP::appError');
         set_exception_handler('\SinglePHP::appException');
-        
+
         defined('APP_DEBUG') || define('APP_DEBUG',false);
         define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
         define('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH'));
         define('IS_AJAX', ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
-        
+
         date_default_timezone_set("Asia/Shanghai");
-        
+
         if(Config('USE_SESSION') == true) session_start();
         includeIfExist(APP_FULL_PATH.'/common.php');
         $pathMod = Config('PATH_MOD');
         $pathMod = empty($pathMod)?'NORMAL':$pathMod;
         spl_autoload_register(array('SinglePHP', 'autoload'));
-        
+
         if (IS_CLI) {   // 命令行模式
             Config('PATH_MOD', 'PATH_INFO');
             $tmp = parse_url($_SERVER['argv'][1]);
@@ -196,6 +196,8 @@ class SinglePHP {
             includeIfExist(APP_FULL_PATH.'/Model/'.$class.'.class.php');
         }elseif(substr($class,-6)=='Widget'){
             includeIfExist(APP_FULL_PATH.'/Widget/'.$class.'.class.php');
+        }elseif(substr($class,-7)=='Service'){
+            includeIfExist(APP_FULL_PATH.'/Service/'.$class.'.class.php');
         }else{
             includeIfExist(APP_FULL_PATH.'/Lib/'.$class.'.class.php');
         }
@@ -333,10 +335,10 @@ class View {
     public function display($tplFile) {
         $this->_viewPath = $this->_tplDir . $tplFile . '.php';
         $cacheTplFile = $this->_tplCacheDir . md5($tplFile) . ".php";
-        
+
         if(!is_file($cacheTplFile) || filemtime($this->_viewPath) > filemtime($cacheTplFile))
             file_put_contents($cacheTplFile, $this->compiler($this->_viewPath));
-        
+
         unset($tplFile);
         extract($this->_data);
         #include $this->_viewPath;
@@ -374,7 +376,7 @@ class View {
             $content);
         return $content;
     }
-    
+
 }
 
 /**
@@ -424,10 +426,10 @@ class Widget {
 
 /**
  * 数据库操作类
- * 使用方法： 
+ * 使用方法：
  *      $db = db();
  *      $db->query('select * from table');
- * 
+ *
  * 2015-06-25 数据库操作改为PDO，可以用于php7
  * 或者使用 Medoo，支持多种数据库
  */
@@ -453,7 +455,7 @@ class DB {
             $this->options[\PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '" . Config("DB_CHARSET") . "'";
         $dsn = Config("DB_TYPE").":host=".Config("DB_HOST").";port=".Config("DB_PORT").
             ";dbname=".Config("DB_NAME").";charset=".Config("DB_CHARSET");
-        
+
         try {
             $this->_db = new \PDO($dsn, Config("DB_USER"), Config("DB_PWD"), $this->options) or die('数据库连接创建失败');
         } catch (\PDOException $e) {    // 避免泄露密码等
@@ -517,7 +519,7 @@ class DB {
     public function insert($sql, $bind=array()) {return $this->execute($sql, $bind, 'insert');}
     public function update($sql, $bind=array()) {return $this->execute($sql, $bind, 'update');}
     public function delete($sql, $bind=array()) {return $this->execute($sql, $bind, 'delete');}
-    
+
     /**
      * 执行sql语句
      * @param string $sql 要执行的sql
@@ -606,7 +608,7 @@ class Model{
     protected $_where = '';         // where语句
     protected $_bind = array();     // 参数数组
     protected $_dbname = '';
-    
+
     function __construct($tbl_name='', $db_name='', $pk="id") {
         $this->_initialize();
         $this->_table = (empty($db_name) ? "" : $db_name.'.') . Config("TBL_PREFIX") . ( empty($this->_table) ? $tbl_name : $this->_table);
@@ -703,7 +705,7 @@ class Model{
         }
         $keys = substr($keys, 0, -1);
         $this->_bind = array_merge($this->_bind, $_bind);
-            
+
         $_sql = 'UPDATE ' . $this->_table . " SET {$keys} WHERE ". $this->_where;
         $info = $this->_db->update($_sql, $this->_bind);
         $this->clean();
