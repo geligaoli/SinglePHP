@@ -281,19 +281,22 @@ class Controller {
      */
     protected function ajax($json){
         $jsondata = is_string($json) ? $json : json_encode($json, JSON_UNESCAPED_UNICODE);
-        header('Content-Type: application/json; charset=utf-8');
-        header('Content-Length: '. strlen($jsondata));
-        echo ($jsondata);
-        exit;
+        $this->output($jsondata, "application/json");
     }
     protected function xml($xmlstr){
-        header('Content-Type: text/xml; charset=utf-8');
-        header('Content-Length: '. strlen($xmlstr));
-        echo ($xmlstr);
-        exit;
+        $this->output($xmlstr, "text/xml");
+    }
+    protected function text($textstr){
+        $this->output($textstr, "text/plain");
     }
     protected function redirect($url){
         header("Location: $url");
+        exit;
+    }
+    private function output($data, $type) {
+        header('Content-Type: '.$type.'; charset=utf-8');
+        header('Content-Length: '. strlen($data));
+        echo ($data);
         exit;
     }
 }
