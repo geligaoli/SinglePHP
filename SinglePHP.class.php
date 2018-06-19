@@ -74,7 +74,7 @@ function halt($err) {
             debug_print_backtrace();
             $e['trace'] = ob_get_clean();
         }
-
+        
         if (IS_CLI) {
             exit((DIRECTORY_SEPARATOR=='\\' ? iconv('UTF-8', 'gbk', $e['message']) : $e['message'])
                 . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
@@ -83,7 +83,7 @@ function halt($err) {
         $e['message'] = is_array($err) ? $err['message'] : $err;
     }
     Log::fatal($e['message'].' debug_backtrace:'.$e['trace']);
-
+    
     header("Content-Type:text/html; charset=utf-8");
     echo nl2br(htmlspecialchars(print_r($e, true), ENT_QUOTES)); // . '<pre>' . '</pre>';
     exit;
@@ -140,21 +140,21 @@ class SinglePHP {
         register_shutdown_function('\SinglePHP::appFatal'); // 错误和异常处理
         set_error_handler('\SinglePHP::appError');
         set_exception_handler('\SinglePHP::appException');
-
+        
         defined('APP_DEBUG') || define('APP_DEBUG',false);
         define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
         define('APP_FULL_PATH', getcwd().'/'.Config('APP_PATH'));
         define('IS_AJAX', ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
-
+        
         date_default_timezone_set("Asia/Shanghai");
-
+        
         if(Config('USE_SESSION') == true) session_start();
         includeIfExist(APP_FULL_PATH.'/common.php');
         $pathMod = Config('PATH_MOD');
         $pathMod = empty($pathMod)?'NORMAL':$pathMod;
         spl_autoload_register(array('SinglePHP', 'autoload'));
-
+        
         if (IS_CLI) {   // 命令行模式
             Config('PATH_MOD', 'PATH_INFO');
             $tmp = parse_url($_SERVER['argv'][1]);
@@ -335,10 +335,10 @@ class View {
     public function display($tplFile) {
         $this->_viewPath = $this->_tplDir . $tplFile . '.php';
         $cacheTplFile = $this->_tplCacheDir . md5($tplFile) . ".php";
-
+        
         if(!is_file($cacheTplFile) || filemtime($this->_viewPath) > filemtime($cacheTplFile))
             file_put_contents($cacheTplFile, $this->compiler($this->_viewPath));
-
+        
         unset($tplFile);
         extract($this->_data);
         #include $this->_viewPath;
@@ -376,7 +376,7 @@ class View {
             $content);
         return $content;
     }
-
+    
 }
 
 /**
@@ -426,10 +426,10 @@ class Widget {
 
 /**
  * 数据库操作类
- * 使用方法：
+ * 使用方法： 
  *      $db = db();
  *      $db->query('select * from table');
- *
+ * 
  * 2015-06-25 数据库操作改为PDO，可以用于php7
  * 或者使用 Medoo，支持多种数据库
  */
@@ -455,7 +455,7 @@ class DB {
             $this->options[\PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '" . Config("DB_CHARSET") . "'";
         $dsn = Config("DB_TYPE").":host=".Config("DB_HOST").";port=".Config("DB_PORT").
             ";dbname=".Config("DB_NAME").";charset=".Config("DB_CHARSET");
-
+        
         try {
             $this->_db = new \PDO($dsn, Config("DB_USER"), Config("DB_PWD"), $this->options) or die('数据库连接创建失败');
         } catch (\PDOException $e) {    // 避免泄露密码等
@@ -519,7 +519,7 @@ class DB {
     public function insert($sql, $bind=array()) {return $this->execute($sql, $bind, 'insert');}
     public function update($sql, $bind=array()) {return $this->execute($sql, $bind, 'update');}
     public function delete($sql, $bind=array()) {return $this->execute($sql, $bind, 'delete');}
-
+    
     /**
      * 执行sql语句
      * @param string $sql 要执行的sql
@@ -601,14 +601,14 @@ class DB {
  * $model->where("sqlwhere conditon", array(vvv))->find();
  * @author
  */
-class Model{
+class Model {
     protected $_db = null;          // 数据库连接
     protected $_table = '';         // 表名
     protected $_pk = '';            // 主键名
     protected $_where = '';         // where语句
     protected $_bind = array();     // 参数数组
     protected $_dbname = '';
-
+    
     function __construct($tbl_name='', $db_name='', $pk="id") {
         $this->_initialize();
         $this->_table = (empty($db_name) ? "" : $db_name.'.') . Config("TBL_PREFIX") . ( empty($this->_table) ? $tbl_name : $this->_table);
@@ -705,7 +705,7 @@ class Model{
         }
         $keys = substr($keys, 0, -1);
         $this->_bind = array_merge($this->_bind, $_bind);
-
+            
         $_sql = 'UPDATE ' . $this->_table . " SET {$keys} WHERE ". $this->_where;
         $info = $this->_db->update($_sql, $this->_bind);
         $this->clean();
@@ -752,15 +752,16 @@ class Model{
  * 保存路径为 App/Log，按天存放
  * fatal和warning会记录在.log.wf文件中
  */
-class Log{
+class Log {
+    const DEBUG = 1, NOTICE = 2, WARN = 3, ERROR = 4, FATAL = 5;
     /**
      * 打日志
      * @param string $msg 日志内容
      * @param string $level 日志等级
      * @param bool $wf 是否为错误日志
      */
-    protected static function write($msg, $level='DEBUG', $wf=false){
-        if($wf || (null != Config('LOG_LEVEL') && in_array($level, Config('LOG_LEVEL')))) {
+    protected static function write($msg, $level=Log::NOTICE, $wf=false){
+        if(null != Config('LOG_LEVEL') && Config('LOG_LEVEL') <= $level) {
             $msg = date('[ Y-m-d H:i:s ]')." [{$level}] ".$msg."\r\n";
             $logPath = APP_FULL_PATH.'/Log/'.date('Ymd').'.log';
             if($wf){
@@ -774,35 +775,35 @@ class Log{
      * @param string $msg 日志信息
      */
     public static function fatal($msg){
-        self::write($msg, 'FATAL', true);
+        self::write($msg, Log::FATAL, true);
     }
     /**
      * 打印fatal日志
      * @param string $msg 日志信息
      */
     public static function error($msg){
-        self::write($msg, 'ERROR', true);
+        self::write($msg, Log::ERROR, true);
     }
     /**
      * 打印warning日志
      * @param string $msg 日志信息
      */
     public static function warn($msg){
-        self::write($msg, 'WARN');
+        self::write($msg, Log::WARN);
     }
     /**
      * 打印notice日志
      * @param string $msg 日志信息
      */
     public static function notice($msg){
-        self::write($msg, 'NOTICE');
+        self::write($msg, Log::NOTICE);
     }
     /**
      * 打印debug日志
      * @param string $msg 日志信息
      */
     public static function debug($msg){
-        self::write($msg, 'DEBUG');
+        self::write($msg, Log::DEBUG);
     }
 }
 
