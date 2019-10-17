@@ -3,7 +3,6 @@
  * SinglePHP-Ex 单php文件精简框架。
  * https://github.com/geligaoli/SinglePHP-Ex
  */
-
 /**
  * 获取和设置配置参数 支持批量定义
  * 如果$key是关联型数组，则会按K-V的形式写入配置
@@ -17,27 +16,56 @@ function Config($key, $value=null){
     $args = func_num_args();
     if($args == 1){
         if(is_string($key)){  //如果传入的key是字符串
-            return isset($_config[$key])?$_config[$key]:null;
+            return isset($_config[$key]) ? $_config[$key] : null;
         }
         if(is_array($key)){
             if(array_keys($key) !== range(0, count($key) - 1)){  //如果传入的key是关联数组
                 $_config = array_merge($_config, $key);
             }else{
                 $ret = array();
-                foreach ($key as $k) {
-                    $ret[$k] = isset($_config[$k])?$_config[$k]:null;
-                }
+                foreach ($key as $k)
+                    $ret[$k] = isset($_config[$k]) ? $_config[$k] : null;
                 return $ret;
             }
         }
     }else{
-        if(is_string($key)){
+        if(is_string($key))
             $_config[$key] = $value;
-        }else{
+        else
             halt('传入参数不正确');
-        }
     }
     return null;
+}
+
+/**
+ * 按配置生成url
+ * @param unknown $ModuleAction
+ * @param array $param
+ * @return string
+ */
+function U($ModuleAction, $param=array()) {
+    if (strcasecmp(Config('PATH_MODE'),'NORMAL') === 0) {
+        $pathInfoArr = explode('/',trim($ModuleAction,'/'));
+        $moduleName = (isset($pathInfoArr[0]) && $pathInfoArr[0] !== '') ? $pathInfoArr[0] : 'Index';
+        $actionName = (isset($pathInfoArr[1]) && $pathInfoArr[1] !== '') ? $pathInfoArr[1] : 'Index';
+        $url = 'c='.$moduleName.'&a='.$actionName;
+        if (is_string($param))
+            $url .= '&' . $param;
+        else {
+            foreach($param as $k => $v)
+                $url .= '&'. $k .'='. urlencode($v);
+        }
+        return $_SERVER['SCRIPT_NAME'] .'?'. $url;
+    } else { // pathinfo
+        $url = trim($ModuleAction, '/');
+        if (is_string($param))
+            $url .= '/' . str_replace(array('&','='), array('/','/'), $param);
+        else {
+            foreach($param as $k => $v)
+                $url .= '/'. $k .'/'. urlencode($v);
+        }
+        return APP_URL .'/'. $url .'.'. ltrim(Config("URL_HTML_SUFFIX"), '.');
+    }
 }
 
 /**
@@ -76,8 +104,7 @@ function halt($err) {
         }
         
         if (IS_CLI) {
-            exit((DIRECTORY_SEPARATOR=='\\' ? iconv('UTF-8', 'gbk', $e['message']) : $e['message'])
-                . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
+            exit($e['message'] . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
         }
     } else {
         $e['message'] = is_array($err) ? $err['message'] : $err;
@@ -107,6 +134,17 @@ function includeIfExist($path){
     if(file_exists($path)){
         include $path;
     }
+}
+
+function sp_output($data, $type) {
+    header('Content-Type: '.$type.'; charset=utf-8');
+    header('Content-Length: '. strlen($data));
+    echo ($data);
+    exit;
+}
+
+function sp_tojson($data) {
+    return is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE);
 }
 
 /**
@@ -151,12 +189,12 @@ class SinglePHP {
         
         if(Config('USE_SESSION') == true) session_start();
         includeIfExist(APP_FULL_PATH.'/common.php');
-        $pathMod = Config('PATH_MOD');
+        $pathMod = Config('PATH_MODE');
         $pathMod = empty($pathMod)?'NORMAL':$pathMod;
         spl_autoload_register(array('SinglePHP', 'autoload'));
         
         if (IS_CLI) {   // 命令行模式
-            Config('PATH_MOD', 'PATH_INFO');
+            Config('PATH_MODE', 'PATH_INFO');
             $tmp = parse_url($_SERVER['argv'][1]);
             $_SERVER['PATH_INFO'] = $tmp['path'];
             $tmp = explode('&', $tmp['query']);
@@ -165,26 +203,74 @@ class SinglePHP {
                 $_GET[$k] = $v;
             }
         }
-        if(strcmp(strtoupper($pathMod),'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])){
-            define("MODULE_NAME", isset($_GET['c'])?$_GET['c']:'Index');
-            define("ACTION_NAME", isset($_GET['a'])?$_GET['a']:'Index');
+        if(strcasecmp($pathMod,'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])){
+            $moduleName = isset($_GET['c']) ? $_GET['c'] : 'Index';
+            $actionName = isset($_GET['a']) ? $_GET['a'] : 'Index';
+            $this->callActionMethod($moduleName, $actionName);
         }else{
-            $pathInfo = isset($_SERVER['PATH_INFO'])?$_SERVER['PATH_INFO']:'';
+            $pathInfo = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : '';
+            $pathInfo = preg_replace('/\.(' . ltrim(Config("URL_HTML_SUFFIX"), '.') . ')$/i', '', $pathInfo);
             $pathInfoArr = explode('/',trim($pathInfo,'/'));
-            define("MODULE_NAME", (isset($pathInfoArr[0]) && $pathInfoArr[0] !== '') ? $pathInfoArr[0]: 'Index');
-            define("ACTION_NAME", isset($pathInfoArr[1]) ? $pathInfoArr[1]: 'Index');
+            $moduleName = (isset($pathInfoArr[0]) && $pathInfoArr[0] !== '') ? $pathInfoArr[0] : 'Index';
+            $actionName = $this->parseActionName($pathInfoArr);
+            $this->callActionMethod($actionName);
         }
-        if(!class_exists(MODULE_NAME.'Controller')){
-            halt('控制器 '.MODULE_NAME.' 不存在');
+    }
+    /**
+     * 解析Action名及QS参数
+     * @param unknown $pathInfoArr
+     */
+    protected function parseActionName($pathInfoArr) {
+        $actionName = (isset($pathInfoArr[1]) && $pathInfoArr[1] !== '') ? $pathInfoArr[1] : 'Index';
+        $qsParam = array();
+        for ($idx=2; $idx<count($pathInfoArr); $idx++,$idx++)
+            $qsParam[$pathInfoArr[$idx]] = isset($pathInfoArr[$idx+1]) ? $pathInfoArr[$idx+1] : '';
+        $_GET = array_merge($_GET, $qsParam);
+        $_REQUEST = array_merge($_REQUEST, $qsParam);
+        return $actionName;
+    }
+    /**
+     * 解析执行模块及方法
+     * @param unknown $moduleName
+     * @param unknown $actionName
+     */
+    protected function callActionMethod($moduleName, $actionName) {
+        define("MODULE_NAME", $moduleName);
+        
+        if(!class_exists(MODULE_NAME.'Controller') && !preg_match('/^[A-Za-z][\w|\.]*$/', MODULE_NAME)){
+            halt('控制器 '.MODULE_NAME.'Controller 不存在');
         }
         $controllerClass = MODULE_NAME.'Controller';
         $controller = new $controllerClass();
-        if(!method_exists($controller, ACTION_NAME.'Action')){
-            halt('方法 '.ACTION_NAME.' 不存在');
+        
+        $isrestful = $controller instanceof RestfulController;
+        if ($isrestful) {
+            define("ACTION_NAME", ucfirst(strtolower($this->httpmethod()))); // Get Post Put Patch Delete Options
+        } else {
+            define("ACTION_NAME", $actionName);
         }
-        call_user_func(array($controller, ACTION_NAME.'Action'));
+        
+        if(!method_exists($controller, ACTION_NAME.'Action')){
+            halt('方法 '.ACTION_NAME.'Action 不存在');
+        }
+        $result = $controller->{ACTION_NAME.'Action'}();  // call_user_func(array($controller, ACTION_NAME.'Action'));
+        if ($result != NULL && $isrestful)
+            sp_output(sp_tojson($result), "application/json");
     }
-
+    /**
+     * 获取http的method
+     * @return unknown|string
+     */
+    protected function httpmethod()
+    {
+        if (isset($_POST['_method'])) {
+            return $_POST['_method'];
+        } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
+            return $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'];
+        } else {
+            return $_SERVER['REQUEST_METHOD']?: 'GET';
+        }
+    }
     /**
      * 自动加载函数
      * @param string $class 类名
@@ -279,26 +365,23 @@ class Controller {
      * 将数据用json格式输出至浏览器，并停止执行代码
      * @param array $data 要输出的数据
      */
-    protected function ajax($json){
-        $jsondata = is_string($json) ? $json : json_encode($json, JSON_UNESCAPED_UNICODE);
-        $this->output($jsondata, "application/json");
+    protected function json($json){
+        sp_output(sp_tojson($json), "application/json");
     }
     protected function xml($xmlstr){
-        $this->output($xmlstr, "text/xml");
+        sp_output($xmlstr, "text/xml");
     }
     protected function text($textstr){
-        $this->output($textstr, "text/plain");
+        sp_output($textstr, "text/plain");
     }
     protected function redirect($url){
         header("Location: $url");
         exit;
     }
-    private function output($data, $type) {
-        header('Content-Type: '.$type.'; charset=utf-8');
-        header('Content-Length: '. strlen($data));
-        echo ($data);
-        exit;
-    }
+}
+    
+class RestfulController {
+    
 }
 
 /**
@@ -357,7 +440,7 @@ class View {
             $content = '<?php if (!defined(\'APP_FULL_PATH\')) exit();?>' . $content;
         $content = preg_replace(
             array(
-                '/{\$([\w\[\]\'"\$]+)}/s', // 匹配 {$vo['info']}
+                '/{\$([^\}]+)}/s', // 匹配 {$vo['info']}  '/{\$([\w\[\]\'"\$]+)}/s'
                 '/{\:([^\}]+)}/s', // 匹配 {:func($vo['info'])}
                 '/<each[ ]+[\'"](.+)[\'"][ ]*>/', // 匹配 <each "$list as $v"></each>
                 '/<if[ ]*[\'"](.+)[\'"][ ]*>/', // 匹配 <if "$key == 1"></if>
@@ -371,7 +454,8 @@ class View {
                 '<?php }elseif( \\1 ){ ?>',
             ),
             $content);
-        $content = str_replace(array('</if>', '<else />', '</each>', 'APP_URL'), array('<?php } ?>', '<?php }else{ ?>', '<?php } ?>', APP_URL), $content);
+        $content = str_replace(array('</if>', '<else />', '</each>', 'APP_URL', 'MODULE_NAME', 'ACTION_NAME'), 
+            array('<?php } ?>', '<?php }else{ ?>', '<?php } ?>', APP_URL, MODULE_NAME, ACTION_NAME), $content);
         // 匹配 <include "Public/Menu"/>
         $content = preg_replace_callback(
             '/<include[ ]+[\'"](.+)[\'"][ ]*\/>/',
@@ -389,7 +473,6 @@ class View {
 class Widget {
     protected $_view;           /** 视图实例 */
     protected $_widgetName;     /** Widget名 */
-
     /**
      * 构造函数，初始化视图实例
      */
@@ -398,32 +481,28 @@ class Widget {
         $dir = APP_FULL_PATH . '/Widget/Tpl/';
         $this->_view = new View($dir);
     }
-
     /**
      * 处理逻辑
      * @param mixed $data 参数
      */
     public function invoke($data){}
-
     /**
      * 渲染模板
      * @param string $tpl 模板路径，如果为空则用类名作为模板名
      */
     protected function display($tpl=''){
-        if($tpl == ''){
+        if($tpl == '')
             $tpl = $this->_widgetName;
-        }
         $this->_view->display($tpl);
     }
-
     /**
      * 为视图引擎设置一个模板变量
      * @param string $name 要在模板中使用的变量名
      * @param mixed $value 模板中该变量名对应的值
      * @return void
      */
-    protected function assign($name,$value){
-        $this->_view->assign($name,$value);
+    protected function assign($name, $value){
+        $this->_view->assign($name, $value);
     }
 }
 
@@ -752,8 +831,7 @@ class Model {
 /**
  * 日志类
  * 使用方法：Log::fatal('error msg');
- * 保存路径为 App/Log，按天存放
- * fatal和warning会记录在.log.wf文件中
+ * 保存路径为 App/Log，按天存放, fatal和error会记录在.log.wf文件中
  */
 class Log {
     const DEBUG = 1, NOTICE = 2, WARN = 3, ERROR = 4, FATAL = 5;
@@ -767,9 +845,7 @@ class Log {
         if(null != Config('LOG_LEVEL') && Config('LOG_LEVEL') <= $level) {
             $msg = date('[ Y-m-d H:i:s ]')." [{$level}] ".$msg."\r\n";
             $logPath = APP_FULL_PATH.'/Log/'.date('Ymd').'.log';
-            if($wf){
-                $logPath .= '.wf';
-            }
+            if($wf) $logPath .= '.wf';
             file_put_contents($logPath, $msg, FILE_APPEND);
         }
     }
@@ -780,10 +856,6 @@ class Log {
     public static function fatal($msg){
         self::write($msg, Log::FATAL, true);
     }
-    /**
-     * 打印fatal日志
-     * @param string $msg 日志信息
-     */
     public static function error($msg){
         self::write($msg, Log::ERROR, true);
     }
@@ -794,17 +866,9 @@ class Log {
     public static function warn($msg){
         self::write($msg, Log::WARN);
     }
-    /**
-     * 打印notice日志
-     * @param string $msg 日志信息
-     */
     public static function notice($msg){
         self::write($msg, Log::NOTICE);
     }
-    /**
-     * 打印debug日志
-     * @param string $msg 日志信息
-     */
     public static function debug($msg){
         self::write($msg, Log::DEBUG);
     }
