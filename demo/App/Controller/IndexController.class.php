@@ -1,7 +1,7 @@
 <?php
 class IndexController extends BaseController {
     public function IndexAction(){
-        $this->assign('title', 'SinglePHP');
+        $this->assign('title', 'SinglePHP-Ex');
         $this->display();
     }
     public function UrlAction(){
@@ -15,10 +15,10 @@ class IndexController extends BaseController {
             'result' => true,
             'data'   => 123,
         );
-        $this->AjaxReturn($ret);                //将$ret格式化为json字符串后输出到浏览器
+        $this->json($ret);                //将$ret格式化为json字符串后输出到浏览器
     }
     public function CommonAction(){
-        echo testFunction();
+        echo Now();
     }
     public function AutoLoadAction(){
         $t = new Test();

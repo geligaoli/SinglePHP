@@ -3,19 +3,19 @@
 
 ### 简介
 
-SinglePHP-Ex是一个单文件PHP框架，提供了简单的MVC方式，简单系统的快速开发。整个框架不超过1000行。
+[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简MVC方式，简单系统的快速开发。整个框架不超过800行。
 
-SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础，并整合了 [PhpPoem](https://github.com/cleey/phppoem) 部分代码。
+[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础，并整合了 [PhpPoem](https://github.com/cleey/phppoem)、Thinkphp早期 部分代码。
 
 功能的增强有：
 
     加入View的include模板功能，根据文件时间来自动生成编译后的模板缓存文件。
     
-    数据库操作改为PDO，可以在php7.1执行。（DB与原SinglePHP不兼容）。
+    数据库操作改为PDO，可以在php7.x执行。支持建立多数据库连接。支持多种数据库的分页查询。（DB与原SinglePHP不兼容）。
     
-    拦截php的异常错误，DEBUG状态下，在页面显示错误trace，方便调试。
+    拦截php的异常错误，DEBUG状态下，在页面显示详细错误trace，方便调试。
     
-    加入数据库表Model，简化对单表的增删改查的操作。
+    加入数据库表Model，参考thinkphp，简化对单表的增删改查的操作。
     
     加入了命令行模式，方便写脚本用。
 
@@ -49,11 +49,12 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
     │   │       ├── footer.php
     │   │       └── header.php
     │   └── common.php                      #一些共用函数
-    ├── SinglePHP.class.php                 #SinglePHP核心文件
+    ├── SinglePHP.class.php                 #SinglePHP-Ex核心文件
     └── Public                              #网站根目录
         ├── index.php                       #入口文件
-        ├── js                              #javascript文件
-        └── css                             #css样式表
+        ├── img                             #图片文件目录
+        ├── js                              #javascript文件目录
+        └── css                             #css样式表目录
 
 
 ### Hello World
@@ -71,7 +72,7 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
 默认控制器：App/Controller/IndexController.class.php
 
     <?php
-    class IndexController extends Controller {       //控制器必须继承Controller类或其子类
+    class IndexController extends BaseController {   //控制器必须继承Controller类或其子类
         public function IndexAction(){               //默认Action
             $this->assign('content', 'Hello World'); //给模板变量赋值
             $this->display();                        //渲染吧骚年
@@ -80,9 +81,9 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
     
 模板文件：App/View/Index/Index.php
 
-    <?php echo $content;
-    or
-    ${content}
+    <?php echo $content; ?>
+    或者
+    <p>${content}</p>
     
 在浏览器访问index.php，应该会输出
 
