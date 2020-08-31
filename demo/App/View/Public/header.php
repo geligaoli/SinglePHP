@@ -47,15 +47,12 @@
             <a href='index.php?a=AutoLoad'>类自动加载</a>
          </li>
          <li>
-            <a href='index.php?a=Widget'>Widget</a>
-         </li>
-         <li>
             <a href='index.php?a=Log'>日志</a>
          </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
-          <a target='_blank' href="https://github.com/leo108/SinglePHP">SinglePHP官网</a>
+          <a target='_blank' href="https://github.com/geligaoli/SinglePHP-Ex">SinglePHP-Ex官网</a>
         </li>
       </ul>
     </nav>

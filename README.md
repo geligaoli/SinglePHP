@@ -9,7 +9,7 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
 
 功能的增强有：
 
-    加入View的模板功能，根据文件时间来自动生成编译后的模板缓存文件。
+    加入View的include模板功能，根据文件时间来自动生成编译后的模板缓存文件。
     
     数据库操作改为PDO，可以在php7.1执行。（DB与原SinglePHP不兼容）。
     
@@ -33,13 +33,13 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
 ### 目录结构
 
     ├── App                                 #业务代码文件夹，可在配置中指定路径
-    │   ├── Cache                           #缓存，需要写权限
+    │   ├── Cache                           #缓存，**需要写权限**
     │   │   ├── Tpl                         #编译后的view模板缓存
     │   │   └── File                        #文件缓存，暂未用
     │   ├── Controller                      #控制器文件夹
     │   │   └── IndexController.class.php
     │   ├── Lib                             #外部库
-    │   ├── Log                             #日志文件夹，需要写权限
+    │   ├── Log                             #日志文件夹，**需要写权限**
     │   ├── Model                           #数据库模型
     │   │   └── IndexModel.class.php
     │   ├── View                            #模板文件夹
@@ -48,10 +48,6 @@ SinglePHP-Ex是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础
     │   │   └── Public
     │   │       ├── footer.php
     │   │       └── header.php
-    │   ├── Widget                          #widget文件夹
-    │   │   ├── MenuWidget.class.php
-    │   │   └── Tpl                         #widget模板文件夹
-    │   │       └── MenuWidget.php
     │   └── common.php                      #一些共用函数
     ├── SinglePHP.class.php                 #SinglePHP核心文件
     └── Public                              #网站根目录

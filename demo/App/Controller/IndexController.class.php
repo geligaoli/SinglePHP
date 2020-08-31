@@ -24,15 +24,12 @@ class IndexController extends BaseController {
         $t = new Test();
         echo $t->hello();
     }
-    public function WidgetAction(){
-        $this->display();
-    }
     public function LogAction(){
         Log::fatal('something');
         Log::warn('something');
         Log::notice('something');
         Log::debug('something');
         Log::sql('something');
-        echo '请到Log文件夹查看效果。如果是SAE环境，可以在日志中心的DEBUG日志查看。';
+        echo '请到Log文件夹查看效果';
     }
 }
