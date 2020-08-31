@@ -15,21 +15,20 @@
 function Config($key, $value=null) {
     static $_config = array();
     $args = func_num_args();
-    if($args == 1){
-        if(is_string($key)){  //如果传入的key是字符串
+    if($args == 1) {
+        if(is_string($key))     //如果传入的key是字符串
             return isset($_config[$key]) ? $_config[$key] : null;
-        }
-        if(is_array($key)){
-            if(array_keys($key) !== range(0, count($key) - 1)){  //如果传入的key是关联数组
+        if(is_array($key)) {
+            if(array_keys($key) !== range(0, count($key) - 1))      //如果传入的key是关联数组
                 $_config = array_merge($_config, $key);
-            }else{
+            else {
                 $ret = array();
                 foreach ($key as $k)
                     $ret[$k] = isset($_config[$k]) ? $_config[$k] : null;
                 return $ret;
             }
         }
-    }else{
+    } else {
         if(is_string($key))
             $_config[$key] = $value;
         else
@@ -77,9 +76,9 @@ function Url($ModuleAction, $param=array()) {
 function Halt($err) {
     $e = array();
     if (APP_DEBUG || IS_CLI) {
-        if (is_array($err)) {
+        if (is_array($err))
             $e = $err;
-        } else {
+        else {
             $trace = debug_backtrace();
             $e['message'] = $err;
             $e['file'] = $trace[0]['file'];
@@ -88,12 +87,10 @@ function Halt($err) {
             debug_print_backtrace();
             $e['trace'] = ob_get_clean();
         }
-        if (IS_CLI) {
+        if (IS_CLI)
             exit($e['message'] . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
-        }
-    } else {
+    } else
         $e['message'] = is_array($err) ? $err['message'] : $err;
-    }
     Log::fatal($e['message'].' debug_backtrace:'.$e['trace']);
 
     header("Content-Type:text/html; charset=utf-8");
@@ -112,13 +109,12 @@ function db() {
 
 /**
  * 如果文件存在就include进来
- * @param string $path 文件路径
+ * @param string $file 文件路径
  * @return void
  */
-function includeIfExist($path) {
-    if(file_exists($path)){
-        include $path;
-    }
+function includeIfExist($file) {
+    if(file_exists($file))
+        include $file;
 }
 
 function sp_output($data, $type) {
@@ -188,11 +184,11 @@ class SinglePHP {
                 $_GET[$k] = $v;
             }
         }
-        if(strcasecmp($pathMod,'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])){
+        if(strcasecmp($pathMod,'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])) {
             $moduleName = isset($_GET['c']) ? $_GET['c'] : 'Index';
             $actionName = isset($_GET['a']) ? $_GET['a'] : 'Index';
             $this->callActionMethod($moduleName, $actionName);
-        }else{
+        } else {
             $pathInfo = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : '';
             $pathInfo = preg_replace('/\.(' . ltrim(Config("URL_HTML_SUFFIX"), '.') . ')$/i', '', $pathInfo);
             $pathInfoArr = explode('/',trim($pathInfo,'/'));
@@ -222,22 +218,21 @@ class SinglePHP {
     protected function callActionMethod($moduleName, $actionName) {
         define("MODULE_NAME", $moduleName);
 
-        if(!class_exists(MODULE_NAME.'Controller') && !preg_match('/^[A-Za-z][\w|\.]*$/', MODULE_NAME)){
+        if(!class_exists(MODULE_NAME.'Controller') && !preg_match('/^[A-Za-z][\w|\.]*$/', MODULE_NAME)) {
             Halt('控制器 '.MODULE_NAME.'Controller 不存在');
         }
         $controllerClass = MODULE_NAME.'Controller';
         $controller = new $controllerClass();
 
         $isRestful = $controller instanceof RestfulController;
-        if ($isRestful) {
+        if ($isRestful)
             define("ACTION_NAME", ucfirst(strtolower($this->httpmethod()))); // Get Post Put Patch Delete Options
-        } else {
+        else
             define("ACTION_NAME", $actionName);
-        }
 
-        if(!method_exists($controller, ACTION_NAME.'Action')){
+        if(!method_exists($controller, ACTION_NAME.'Action'))
             Halt('方法 '.ACTION_NAME.'Action 不存在');
-        }
+
         $result = $controller->{ACTION_NAME.'Action'}();  // call_user_func(array($controller, ACTION_NAME.'Action'));
         if ($result != NULL && $isRestful)
             sp_output(sp_tojson($result), "application/json");
@@ -247,28 +242,26 @@ class SinglePHP {
      * @return string
      */
     protected function httpmethod() {
-        if (isset($_POST['_method'])) {
+        if (isset($_POST['_method']))
             return $_POST['_method'];
-        } elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'])) {
+        elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']))
             return $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'];
-        } else {
+        else
             return $_SERVER['REQUEST_METHOD']?: 'GET';
-        }
     }
     /**
      * 自动加载函数
      * @param string $class 类名
      */
     public static function autoload($class) {
-        if(substr($class,-10)=='Controller'){
+        if (substr($class,-10)=='Controller')
             includeIfExist(APP_FULL_PATH.'/Controller/'.$class.'.class.php');
-        }elseif(substr($class,-5)=='Model'){
+        elseif (substr($class,-5)=='Model')
             includeIfExist(APP_FULL_PATH.'/Model/'.$class.'.class.php');
-        }elseif(substr($class,-7)=='Service'){
+        elseif (substr($class,-7)=='Service')
             includeIfExist(APP_FULL_PATH.'/Service/'.$class.'.class.php');
-        }else{
+        else
             includeIfExist(APP_FULL_PATH.'/Lib/'.$class.'.class.php');
-        }
     }
     // 接受PHP内部回调异常处理
     static function appException($e) {
@@ -288,10 +281,8 @@ class SinglePHP {
     // 自定义错误处理
     static function appError($errno, $errstr, $errfile, $errline) {
         $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
-        if (in_array($errno, $haltArr)) {
-            $errStr = "Errno: $errno $errstr File: $errfile lineno: $errline.";
-            Halt($errStr);
-        }
+        if (in_array($errno, $haltArr))
+            Halt("Errno: $errno $errstr File: $errfile lineno: $errline.");
     }
     // 致命错误捕获
     static function appFatal() {
@@ -327,11 +318,10 @@ class Controller {
      * @return void
      */
     protected function display($tpl='') {
-        if($tpl === ''){
+        if($tpl === '')
             $tpl = MODULE_NAME. '/' . ACTION_NAME;
-        }elseif(strpos($tpl, '/') === false){
+        elseif(strpos($tpl, '/') === false)
             $tpl = MODULE_NAME. '/' . $tpl;
-        }
         $this->_view->display($tpl);
     }
     /**
@@ -347,16 +337,16 @@ class Controller {
      * 将数据用json格式输出至浏览器，并停止执行代码
      * @param array $data 要输出的数据
      */
-    protected function json($json){
+    protected function json($json) {
         sp_output(sp_tojson($json), "application/json");
     }
-    protected function xml($xmlstr){
+    protected function xml($xmlstr) {
         sp_output($xmlstr, "text/xml");
     }
-    protected function text($textstr){
+    protected function text($textstr) {
         sp_output($textstr, "text/plain");
     }
-    protected function redirect($url){
+    protected function redirect($url) {
         header("Location: $url");
         exit;
     }
@@ -364,7 +354,7 @@ class Controller {
 
 class RestfulController {
     // 获取post、put传的json对象
-    protected function read(){
+    protected function read() {
         return json_decode( file_get_contents('php://input') );
     }
 }
@@ -381,11 +371,7 @@ class View {
      * @param string $tplDir
      */
     public function __construct($tplDir='') {
-        if($tplDir == ''){
-            $this->_tplDir = APP_FULL_PATH.'/View/';
-        }else{
-            $this->_tplDir = $tplDir;
-        }
+        $this->_tplDir = $tplDir ?: APP_FULL_PATH.'/View/';
         $this->_tplCacheDir = APP_FULL_PATH.'/Cache/Tpl/';
     }
     /**
@@ -406,13 +392,11 @@ class View {
     public function display($tplFile) {
         $this->_viewPath = $this->_tplDir . $tplFile . '.php';
         $cacheTplFile = $this->_tplCacheDir . md5($tplFile) . ".php";
-
         if(!is_file($cacheTplFile) || filemtime($this->_viewPath) > filemtime($cacheTplFile))
             file_put_contents($cacheTplFile, $this->compiler($this->_viewPath));
-
         unset($tplFile);
         extract($this->_data);
-        #include $this->_viewPath;
+        // include $this->_viewPath;
         include $cacheTplFile;
     }
     /**
@@ -442,10 +426,8 @@ class View {
         $content = str_replace(array('</if>', '<else />', '</each>', 'APP_URL', 'MODULE_NAME', 'ACTION_NAME'),
             array('<?php } ?>', '<?php }else{ ?>', '<?php } ?>', APP_URL, MODULE_NAME, ACTION_NAME), $content);
         // 匹配 <include "Public/Menu"/>
-        $content = preg_replace_callback(
-            '/<include[ ]+[\'"](.+)[\'"][ ]*\/>/',
-            function ($matches) {return $this->compiler($this->_tplDir . $matches[1]. '.php', false);},
-            $content);
+        $content = preg_replace_callback('/<include[ ]+[\'"](.+)[\'"][ ]*\/>/',
+            function ($matches) {return $this->compiler($this->_tplDir . $matches[1]. '.php', false);}, $content);
         return $content;
     }
 
@@ -456,9 +438,7 @@ class View {
  * 使用方法：
  *      $db = db();
  *      $db->query('select * from table');
- *
- * 2015-06-25 数据库操作改为PDO，可以用于php7
- * 或者使用 Medoo，支持多种数据库
+ * 2015-06-25 数据库操作改为PDO，可以用于php7. 或者使用 Medoo，支持多种数据库
  */
 class DB {
     private static $_instance = array();    /** 实例数组 */
@@ -504,11 +484,11 @@ class DB {
      */
     static public function getInstance($dbConf) {
         $key = sp_tojson($dbConf);
-        if(!isset(self::$_instance[$key]) || !(self::$_instance[$key] instanceof self)){
+        if(!isset(self::$_instance[$key]) || !(self::$_instance[$key] instanceof self))
             self::$_instance[$key] = new self($dbConf);
-        }
         return self::$_instance[$key];
     }
+
     public function beginTransaction() {$this->_db->beginTransaction();}
     public function commit() {$this->_db->commit();}
     public function rollBack() {$this->_db->rollBack();}
@@ -547,6 +527,7 @@ class DB {
         } else
             return $this->execute($sql, $bind, 'select');
     }
+
     public function insert($sql, $bind=array()) {return $this->execute($sql, $bind, 'insert');}
     public function update($sql, $bind=array()) {return $this->execute($sql, $bind, 'update');}
     public function delete($sql, $bind=array()) {return $this->execute($sql, $bind, 'delete');}
@@ -560,17 +541,14 @@ class DB {
     private function execute($sql, $bind=array(), $flag = '') {
         $this->_lastSql = $sql;
         try {
-            $pre = $this->_db->prepare($sql);
-            if (!$pre) {
+            $stmt = $this->_db->prepare($sql);
+            if (! $stmt)
                 $this->error($this->_db, $sql);
-            }
-            foreach ($bind as $k => $v) {
-                $pre->bindValue($k, $v);
-            }
-            $re = $pre->execute();
-            if (!$re) {
-                $this->error($pre, $sql);
-            }
+            foreach ($bind as $k => $v)
+                $stmt->bindValue($k, $v);
+            if (! $stmt->execute())
+                $this->error($stmt, $sql);
+
             switch ($flag) {
                 case 'insert': {
                     if ("pgsql" == $this->_db_type) {
@@ -579,11 +557,11 @@ class DB {
                     }
                     return $this->_db->lastInsertId();
                 } break;
-                case 'update':return $pre->rowCount();
+                case 'update':return $stmt->rowCount();
                 break;
-                case 'delete':return $pre->rowCount();
+                case 'delete':return $stmt->rowCount();
                 break;
-                case 'select':return $pre->fetchAll(\PDO::FETCH_ASSOC);
+                case 'select':return $stmt->fetchAll(\PDO::FETCH_ASSOC);
                 break;
                 default:break;
             }
@@ -597,24 +575,12 @@ class DB {
     function __destruct() {
         $this->_db = null;
     }
-    /**
-     * 获取上一次查询的sql
-     * @return string sql
-     */
     public function getLastSql() {
         return $this->_lastSql;
     }
-    /**
-     * 分页时记录总条数
-     * @return number
-     */
     public function totalrows() {
         return $this->totalrows;
     }
-    /**
-     * 分页时自动计算总条数
-     * @return DB
-     */
     public function autocount() {
         $this->autocount = true;
         return $this;
@@ -646,12 +612,13 @@ class Model {
 
     function __construct($tbl_name='', $db_name='', $pk="id", $db=null) {
         $this->_initialize();
-        if($this->_db == null) $this->_db = $db!=null ?: db();
-        $this->_table = (empty($db_name) ? "" : $db_name.'.') . $this->_db->_tbl_prefix . ( empty($this->_table) ? $tbl_name : $this->_table);
+        if($this->_db==null) $this->_db = $db ?: db();
+        $this->_table = (empty($db_name) ? "" : $db_name.'.') . $this->_db->_tbl_prefix . ($this->_table ?: $tbl_name);
         if(empty($this->_pk)) $this->_pk = $pk;
     }
     // 回调方法 初始化模型
     protected function _initialize() {}
+
     /**
      * where条件
      * @param string|array $sqlwhere     sql条件|或查询数组
@@ -730,9 +697,9 @@ class Model {
             $this->where($this->_pk."=:".$this->_pk, array(":".$this->_pk => $data[$this->_pk]));
             unset($data[$this->_pk]);
         }
-        if (empty($this->_where)) {
+        if (empty($this->_where))
             return false;
-        }
+
         $keys = ''; $_bind = array();
         foreach ($data as $k => $v) {
             $keys .= "$k=:$k,";
@@ -804,20 +771,19 @@ class Log {
      * 打印fatal日志
      * @param string $msg 日志信息
      */
-    public static function fatal($msg){
+    public static function fatal($msg) {
         self::write($msg, Log::FATAL);
     }
-    public static function error($msg){
+    public static function error($msg) {
         self::write($msg, Log::ERROR);
     }
-    public static function warn($msg){
+    public static function warn($msg) {
         self::write($msg, Log::WARN);
     }
-    public static function notice($msg){
+    public static function notice($msg) {
         self::write($msg, Log::NOTICE);
     }
-    public static function debug($msg){
+    public static function debug($msg) {
         self::write($msg, Log::DEBUG);
     }
 }
-
