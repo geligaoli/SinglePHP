@@ -7,7 +7,7 @@
 
 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是参考了 [SinglePHP](https://github.com/leo108/SinglePHP) 为原型，并整合了 [PhpPoem](https://github.com/cleey/phppoem)、Thinkphp早期 部分代码。
 
-功能的增强有：
+#### 功能的增强有：
 
     加入了namespace的支持，默认namespace的路径和文件路径一致。
     
@@ -28,11 +28,17 @@
 
 目前 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
 
+#### composer 安装
+
+环境要求PHP版本>=5.3，无其它库依赖。
+
+    composer require "geligaoli/singlephp-ex:^2.0.0"
+
 ### 文档
 
 #### nginx的pathinfo方式配置
 
-假如项目部署在 /www/nginx/default目录下。
+假如项目部署在 /www/nginx/default目录下。设置open_basedir可提高安全性。
 
     root /www/nginx/default/Public;
     index index.html index.php;
@@ -81,7 +87,7 @@ fastcgi_params 文件中增加
 
 在线演示：整理中。见 demo 目录下。
 
-### 目录结构
+#### 目录结构
 
     ┌── App                                 #业务代码文件夹，可在配置中指定路径
     │   ├── Cache                           #缓存，该目录及以下 **需要写权限**
@@ -102,8 +108,9 @@ fastcgi_params 文件中增加
     │   │   └── Public
     │   │       ├── footer.php
     │   │       └── header.php
+    │   ├── vendor                          #composer安装目录，包括SinglePHP-ex
     │   └── Functions.php                   #一些共用函数
-    ├── SinglePHP.php                       #SinglePHP-Ex核心文件
+    ├── composer.json                       #composer配置文件
     └── Public                              #网站根目录
         ├── index.php                       #入口文件
         ├── img                             #图片文件目录
@@ -113,22 +120,23 @@ fastcgi_params 文件中增加
 #### 最简目录结构
 
     ┌── App                                 #业务代码文件夹，可在配置中指定路径
-    │   └── Controller                      #控制器文件夹
-    │       └── IndexController.php
-    ├── SinglePHP.php                       #SinglePHP-Ex核心文件
+    │   ├── Controller                      #控制器文件夹
+    │   │    └── IndexController.php
+    │   └── vendor                          #composer安装目录，包括SinglePHP-ex
+    ├── composer.json                       #composer配置文件
     └── Public                              #网站根目录
         └── index.php                       #入口文件
         
-### Hello World
+#### Hello World
 
 只需增加3个文件，即可输出hello world。
 
 入口文件：index.php
 
     <?php
-    include '../SinglePHP.php';               //包含核心文件
-    $config = array('APP_PATH' => 'App');     //指定业务目录为App
-    SinglePHP::getInstance($config)->run();   //撒丫子跑起来啦
+    require __DIR__ . '/../App/vendor/autoload.php';    //包含核心文件
+    $config = array('APP_PATH' => '../App/');           //指定业务目录为App
+    SinglePHP::getInstance($config)->run();             //跑起来啦
     
 
 默认控制器：App/Controller/IndexController.php
@@ -137,7 +145,7 @@ fastcgi_params 文件中增加
     class IndexController extends BaseController {   //控制器必须继承Controller类或其子类
         public function IndexAction(){               //默认Action
             $this->assign('content', 'Hello World'); //给模板变量赋值
-            $this->display();                        //渲染吧骚年
+            $this->display();                        //渲染吧
         }
     }
     
@@ -145,7 +153,7 @@ fastcgi_params 文件中增加
 
     <?php echo $content; ?>
     或者
-    <p>${content}</p>
+    <p>{$content}</p>
     
 在浏览器访问index.php，应该会输出
 
