@@ -30,39 +30,95 @@
 
 ### 文档
 
-整理中。
+#### nginx的pathinfo方式配置
+
+假如项目部署在 /www/nginx/default目录下。
+
+    root /www/nginx/default/Public;
+    index index.html index.php;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    if (!-e $request_filename) {
+        rewrite  ^/(.*)$  /index.php/$1  last;
+    }
+
+    location ~ \.php($|/) {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param PHP_ADMIN_VALUE "open_basedir=/www/nginx/default/:/usr/share/php:/tmp/:/proc/";
+    }
+
+fastcgi_params 文件中增加
+
+    fastcgi_param  PATH_INFO          $fastcgi_path_info;
+    fastcgi_param  SCRIPT_FILENAME    $document_root$fastcgi_script_name;
+    fastcgi_param  PATH_TRANSLATED    $document_root$fastcgi_path_info;
+
+
+#### View模板语法
+
+    {$vo['info']}           // {$..}输出变量
+    {:func($vo['info'])}    // {:..}调用函数
+    {:Url("Index/Index")}   // 自动按PATH_MODE来生成url
+                    
+    <each "$list as $v"></each>     // 循环
+    <if "$key==1"><elseif "$key==2"><else/></if>    // 判断
+    
+    <include "Public/Menu"/>        // 包含其它文件
+    
+    'APP_URL'       // 项目所在的URL根路径
+    'MODULE_NAME'   // 当前的模块名
+    'ACTION_NAME'   // 当前方法名
+    
+    <?php ?>        // 直接使用php语法
 
 ### Demo
 
-在线演示：整理中。
+在线演示：整理中。见 demo 目录下。
 
 ### 目录结构
 
-    ├── App                                 #业务代码文件夹，可在配置中指定路径
-    │   ├── Cache                           #缓存，**需要写权限**
+    ┌── App                                 #业务代码文件夹，可在配置中指定路径
+    │   ├── Cache                           #缓存，该目录及以下 **需要写权限**
     │   │   ├── Tpl                         #编译后的view模板缓存
     │   │   └── File                        #文件缓存，暂未用
     │   ├── Controller                      #控制器文件夹
-    │   │   └── IndexController.class.php
-    │   ├── Lib                             #外部库
+    │   │   └── IndexController.php
+    │   ├── Lib                             #其他库文件
+    │   │   └── Test.php
     │   ├── Log                             #日志文件夹，**需要写权限**
     │   ├── Model                           #数据库模型
-    │   │   └── IndexModel.class.php
+    │   │   └── IndexModel.php
+    │   ├── Service                         #Service服务
+    │   │   └── IndexService.php
     │   ├── View                            #模板文件夹
     │   │   ├── Index                       #对应Index控制器
     │   │   │   └── Index.php
     │   │   └── Public
     │   │       ├── footer.php
     │   │       └── header.php
-    │   └── common.php                      #一些共用函数
-    ├── SinglePHP.class.php                 #SinglePHP-Ex核心文件
+    │   └── Functions.php                   #一些共用函数
+    ├── SinglePHP.php                       #SinglePHP-Ex核心文件
     └── Public                              #网站根目录
         ├── index.php                       #入口文件
         ├── img                             #图片文件目录
         ├── js                              #javascript文件目录
         └── css                             #css样式表目录
 
+#### 最简目录结构
 
+    ┌── App                                 #业务代码文件夹，可在配置中指定路径
+    │   └── Controller                      #控制器文件夹
+    │       └── IndexController.php
+    ├── SinglePHP.php                       #SinglePHP-Ex核心文件
+    └── Public                              #网站根目录
+        └── index.php                       #入口文件
+        
 ### Hello World
 
 只需增加3个文件，即可输出hello world。
@@ -70,12 +126,12 @@
 入口文件：index.php
 
     <?php
-    include '../SinglePHP.class.php';         //包含核心文件
-    $config = array('APP_PATH' => '../App/'); //指定业务目录为App
+    include '../SinglePHP.php';               //包含核心文件
+    $config = array('APP_PATH' => 'App');     //指定业务目录为App
     SinglePHP::getInstance($config)->run();   //撒丫子跑起来啦
     
 
-默认控制器：App/Controller/IndexController.class.php
+默认控制器：App/Controller/IndexController.php
 
     <?php
     class IndexController extends BaseController {   //控制器必须继承Controller类或其子类

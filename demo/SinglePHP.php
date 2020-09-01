@@ -3,6 +3,7 @@
  * SinglePHP-Ex 单php文件精简框架。
  * https://github.com/geligaoli/SinglePHP-Ex
  * @author geligaoli
+ * @version 2020-09-01
  */
 namespace SinglePHP;
 /**
@@ -234,7 +235,7 @@ class SinglePHP {
      * @return string
      */
     protected function httpmethod() {
-        if (isset($_POST['_method']))
+        if (isset($_POST['_method']))       // 用post方式模拟restful方法
             return $_POST['_method'];
         elseif (isset($_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE']))
             return $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'];
@@ -303,8 +304,8 @@ class Controller {
      * @param string $name 要在模板中使用的变量名
      * @param mixed $value 模板中该变量名对应的值
      */
-    protected function assign($name,$value) {
-        $this->_view->assign($name,$value);
+    protected function assign($name, $value) {
+        $this->_view->assign($name, $value);
     }
     /**
      * 将数据用json格式输出至浏览器，并停止执行代码
@@ -345,7 +346,7 @@ class View {
     private $_viewPath;         /** 视图文件路径 */
     private $_data = array();   /** 视图变量列表 */
     /**
-     * @param string $tplDir
+     * @param string $tplDir 模板目录
      */
     public function __construct($tplDir='') {
         $this->_tplDir = $tplDir ?: APP_FULL_PATH.'/View/';
@@ -355,7 +356,6 @@ class View {
      * 为视图引擎设置一个模板变量
      * @param string $key 要在模板中使用的变量名
      * @param mixed $value 模板中该变量名对应的值
-     * @return void
      */
     public function assign($key, $value) {
         $this->_data[$key] = $value;
@@ -437,8 +437,7 @@ class DB {
             throw new \Exception($e->getMessage());
         }
     }
-    /**
-     * 获取DB类
+    /** 获取DB类
      * @param array $dbConf 配置数组
      * @return DB
      * @throws \Exception
@@ -449,7 +448,6 @@ class DB {
             self::$_instance[$key] = new self($dbConf);
         return self::$_instance[$key];
     }
-
     public function beginTransaction() {$this->_db->beginTransaction();}
     public function commit() {$this->_db->commit();}
     public function rollBack() {$this->_db->rollBack();}
@@ -488,16 +486,15 @@ class DB {
         } else
             return $this->execute($sql, $bind, 'select');
     }
-
     public function insert($sql, $bind=array()) {return $this->execute($sql, $bind, 'insert');}
     public function update($sql, $bind=array()) {return $this->execute($sql, $bind, 'update');}
     public function delete($sql, $bind=array()) {return $this->execute($sql, $bind, 'delete');}
 
-    /**
-     * 执行sql语句
+    /** 执行sql语句
      * @param string $sql 要执行的sql
      * @param array $bind 执行中的参数
      * @return bool|int|array 执行成功返回数组、数量、自增id，失败返回false
+     * @throws \Exception
      */
     private function execute($sql, $bind=array(), $flag = '') {
         $this->_lastSql = $sql;
@@ -512,7 +509,7 @@ class DB {
 
             switch ($flag) {
                 case 'insert': {
-                    if ("pgsql" == $this->_db_type) {
+                    if ("pgsql" == $this->_db_type) {   // id SERIAL PRIMARY KEY,
                         if(preg_match("/^INSERT[\t\n ]+INTO[\t\n ]+([a-z0-9\_\-]+)/is", $sql, $tablename))
                             return $this->_db->lastInsertId($tablename[1] .'_id_seq');
                     }
@@ -543,8 +540,7 @@ class DB {
         $this->autocount = true;
         return $this;
     }
-    /**
-     * 分页参数
+    /** 分页参数
      * @param number $pageno
      * @param number $pagesize
      * @return DB
@@ -716,7 +712,7 @@ class Model {
 class Log {
     const DEBUG = 1, NOTICE = 2, WARN = 3, ERROR = 4, FATAL = 5;
     /**
-     * 打日志
+     * 打印日志
      * @param string $msg 日志内容
      * @param string $level 日志等级
      */
@@ -727,8 +723,7 @@ class Log {
             file_put_contents($logPath, $msg, FILE_APPEND);
         }
     }
-    /**
-     * 打印fatal日志
+    /** 打印fatal日志
      * @param string $msg 日志信息
      */
     public static function fatal($msg) {
