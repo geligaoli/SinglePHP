@@ -1,9 +1,9 @@
 {
-    "name": "geligaoli/singlephp-ex",
-    "description": "Single File PHP Framework",
-    "type": "library",
-    "keywords": ["framework","SinglePHP", "basic"],
-    "homepage": "https://github.com/geligaoli/SinglePHP-Ex",
+    "name": "geligaoli/singlephp-ex-project",
+    "description": "Single File PHP Project",
+    "type": "project",
+    "keywords": ["project","SinglePHP", "basic"],
+    "homepage": "https://github.com/geligaoli/SinglePHP-Exi/tree/master/demo",
     "license": "MIT",
     "authors": [
         {
@@ -12,6 +12,10 @@
         }
     ],
     "require": {
-        "php": ">=5.3.0"
+        "php": ">=5.3.0",
+        "geligaoli/singlephp-ex": "^2.x"
+    },
+    "config": {
+        "vendor-dir": "App/vendor"
     }
 }
