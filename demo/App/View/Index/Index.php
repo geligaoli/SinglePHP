@@ -1,5 +1,5 @@
 <?php
-$data = array(
+$data = array (
     'title' => $title,
     'body_class' => 'bs-docs-home',
 );

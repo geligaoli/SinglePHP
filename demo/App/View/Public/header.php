@@ -32,22 +32,22 @@
     <nav class="collapse navbar-collapse bs-navbar-collapse" role="navigation">
       <ul class="nav navbar-nav">
          <li>
-            <a href='APP_URL/index.php?a=Url'>方式路由</a>
+            <a href='{:\SinglePHP\Url("Index/Url")}'>方式路由</a>
          </li>
          <li>
-            <a href='APP_URL/index.php?a=Redirect'>重定向</a>
+            <a href='{:Url("Index/Database", 'a=b&c=d')}'>数据库</a>
          </li>
          <li>
-            <a href='APP_URL/index.php?a=Ajax'>Ajax返回</a>
+            <a href='{:Url("Index/Ajax", array("a"=>"b"))}'>Ajax返回</a>
          </li>
          <li>
-            <a href='APP_URL/index.php?a=Common'>文件自动加载</a>
+            <a href='APP_URL/Index/Function.html'>函数自动加载</a>
          </li>
          <li>
-            <a href='APP_URL/index.php?a=AutoLoad'>类自动加载</a>
+            <a href='APP_URL/Index/AutoLoad.html'>类自动加载</a>
          </li>
          <li>
-            <a href='APP_URL/index.php?a=Log'>日志</a>
+            <a href='APP_URL/index.php?c=Index&a=Log'>日志</a>
          </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">

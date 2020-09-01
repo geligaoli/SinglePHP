@@ -157,6 +157,7 @@ class SinglePHP {
         register_shutdown_function(array('SinglePHP\SinglePHP', 'appFatal')); // 错误和异常处理
         set_error_handler(array('SinglePHP\SinglePHP', 'appError'));
         set_exception_handler(array('SinglePHP\SinglePHP', 'appException'));
+        date_default_timezone_set("Asia/Shanghai");
 
         defined('APP_DEBUG') || define('APP_DEBUG',false);
         define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
@@ -164,10 +165,8 @@ class SinglePHP {
         define('IS_AJAX', (strtolower(value($_SERVER,'HTTP_X_REQUESTED_WITH')) == 'xmlhttprequest') ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
 
-        date_default_timezone_set("Asia/Shanghai");
-
         if(Config('USE_SESSION') == true) \session_start();
-        includeIfExist(APP_FULL_PATH.'/functions.php');
+        includeIfExist(APP_FULL_PATH.'/Functions.php');
         spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
 
         if (IS_CLI) {   // 命令行模式
@@ -180,18 +179,18 @@ class SinglePHP {
                 $_GET[$k] = $v;
             }
         }
-        if(!isset($_SERVER['PATH_INFO']) || strcasecmp(Config('PATH_MODE'),'NORMAL') === 0) {
+        // 路径解析
+        $pathInfo = value($_SERVER, 'PATH_INFO', '');
+        if ($pathInfo === '') {
             $moduleName = value($_GET, 'c', 'Index');
             $actionName = value($_GET, 'a', 'Index');
-            $this->callActionMethod($moduleName, $actionName);
         } else {
-            $pathInfo = value($_SERVER, 'PATH_INFO', '');
             $pathInfo = preg_replace('/\.(' . ltrim(Config("URL_HTML_SUFFIX"), '.') . ')$/i', '', $pathInfo);
             $pathInfoArr = explode('/',trim($pathInfo,'/'));
             $moduleName = valempty($pathInfoArr, 0, 'Index');
             $actionName = $this->parseActionName($pathInfoArr);
-            $this->callActionMethod($moduleName, $actionName);
         }
+        $this->callActionMethod($moduleName, $actionName);
     }
     /**
      * 解析Action名及QS参数
@@ -249,7 +248,7 @@ class SinglePHP {
     public static function autoload($class) {
         if ($class[0]===self::$appNamespace[0] && strncmp($class, self::$appNamespace."\\", strlen(self::$appNamespace)+1)===0) {
             $classfile = strtr(substr($class, strlen(self::$appNamespace)), "\\", "/");
-            includeIfExist(APP_FULL_PATH.$classfile.'.class.php'); // 默认Namespace路径和文件路径一致
+            includeIfExist(APP_FULL_PATH.$classfile.'.php'); // 默认Namespace路径和文件路径一致
         } else
             includeIfExist(APP_FULL_PATH.'/vendor/autoload.php');  //composer安装的类库
     }
@@ -386,13 +385,15 @@ class View {
         $content = preg_replace(
             array(
                 '/{\$([^\}]+)}/s', // 匹配 {$vo['info']}  '/{\$([\w\[\]\'"\$]+)}/s'
+                '/{\:Url([^\}]+)}/s', // 匹配 {:Url("")}, 纯简化
                 '/{\:([^\}]+)}/s', // 匹配 {:func($vo['info'])}
-                '/<each[ ]+[\'"](.+)[\'"][ ]*>/', // 匹配 <each "$list as $v"></each>
-                '/<if[ ]*[\'"](.+)[\'"][ ]*>/', // 匹配 <if "$key == 1"></if>
-                '/<elseif[ ]*[\'"](.+)[\'"][ ]*>/',
+                '/<each[ ]+[\'"](.+?)[\'"][ ]*>/', // 匹配 <each "$list as $v"></each>
+                '/<if[ ]*[\'"](.+?)[\'"][ ]*>/', // 匹配 <if "$key == 1"></if>
+                '/<elseif[ ]*[\'"](.+?)[\'"][ ]*>/',
             ),
             array(
                 '<?php echo $\\1;?>',
+                '<?php echo \\SinglePHP\\Url\\1;?>',
                 '<?php echo \\1;?>',
                 '<?php foreach( \\1 ){ ?>',
                 '<?php if( \\1 ){ ?>',
@@ -555,7 +556,7 @@ class DB {
 }
 
 /**
- * 数据库模型
+ * 数据库模型, 简化增删改查
  * $model = new UserModel("tablename");
  * $model->where("sqlwhere conditon", array(vvv))->get();
  */
@@ -618,7 +619,7 @@ class Model {
                 }
             }
             $this->_where = ' (' . implode(" AND ", $item) . ') ';
-            $this->_where .= value($sqlwhere, "_sql", "");
+            $this->_where .= value($sqlwhere, "_sql", ""); // 其他如order group等语句
         } else {
             $this->_where = $sqlwhere;
             $this->_bind = $bind;

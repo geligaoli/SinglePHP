@@ -4,6 +4,8 @@ namespace App\Controller;
 
 use App\Functions;
 use App\Lib\Test as TestClass;
+use App\Model\OrderModel;
+use App\Service\OrderService;
 use SinglePHP\BaseController;
 use SinglePHP\Log;
 
@@ -40,12 +42,23 @@ class IndexController extends BaseController {
         echo '请到Log文件夹查看效果';
     }
     public function DatabaseAction() {
+        $orderModel = new OrderModel();
+        $result1 = $orderModel->getpk1();
+
+        $orderService = new OrderService();
+        $result3 = $orderService->getLast3Order();
+
         $db = \SinglePHP\db();
         $db->beginTransaction();
-        $result = $db->select("select * from tbl_order limit 3");
-        var_dump($result);
+        $result = $db->autocount()->page(1, 2)->select("select * from tbl_order");
         //echo nl2br(htmlspecialchars(print_r($result, true), ENT_HTML5));
-        echo nl2br(htmlspecialchars($db->getLastSql(), ENT_QUOTES));
+        $lastsql = $db->getLastSql();
         $db->rollBack();
+
+        $this->assign("result1", $result1);
+        $this->assign("result3", $result3);
+        $this->assign("result", $result);
+        $this->assign("sql", $lastsql);
+        $this->display();
     }
 }

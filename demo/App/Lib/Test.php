@@ -4,6 +4,6 @@ if (!defined('APP_FULL_PATH')) exit();
 
 class Test {
     public function hello() {
-        echo 'greet from test class';
+        echo 'this is hello message! Test class.';
     }
 }

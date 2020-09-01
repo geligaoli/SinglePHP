@@ -3,19 +3,25 @@
 
 ### 简介
 
-[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简MVC方式，简单系统的快速开发。整个框架不超过800行。
+[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简的MVC模式，简单系统的快速开发。整个框架不超过800行。看一眼代码和demo的内容，即可上手使用。
 
-[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是采用 [SinglePHP](https://github.com/leo108/SinglePHP) 为基础，并整合了 [PhpPoem](https://github.com/cleey/phppoem)、Thinkphp早期 部分代码。
+[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是参考了 [SinglePHP](https://github.com/leo108/SinglePHP) 为原型，并整合了 [PhpPoem](https://github.com/cleey/phppoem)、Thinkphp早期 部分代码。
 
 功能的增强有：
 
+    加入了namespace的支持，默认namespace的路径和文件路径一致。
+    
+    加入了composer的支持。保持了单文件php的简单，又可以composer安装组件。
+    
+    路由规则支持PATHINFO的伪静态方式，也同时支持普通QueryString的访问。
+
     加入View的include模板功能，根据文件时间来自动生成编译后的模板缓存文件。
     
-    数据库操作改为PDO，可以在php7.x执行。支持建立多数据库连接。支持多种数据库的分页查询。（DB与原SinglePHP不兼容）。
-    
-    拦截php的异常错误，DEBUG状态下，在页面显示详细错误trace，方便调试。
+    数据库操作改为PDO，可以在php7.x执行。支持建立多数据库连接。支持多种数据库的分页查询。
     
     加入数据库表Model，参考thinkphp，简化对单表的增删改查的操作。
+    
+    拦截php的异常错误，DEBUG状态下，在页面显示详细错误trace，方便调试。
     
     加入了命令行模式，方便写脚本用。
 
