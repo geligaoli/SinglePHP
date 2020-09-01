@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Functions;
+use App\Lib\MyLog;
 use App\Lib\Test as TestClass;
 use App\Model\OrderModel;
 use App\Service\OrderService;
@@ -31,7 +32,7 @@ class IndexController extends BaseController {
         echo Functions\Now();
     }
     public function AutoLoadAction(){
-        $t = new TestClass();
+        $t = new TestClass(new MyLog());
         echo $t->hello();
     }
     public function LogAction(){
