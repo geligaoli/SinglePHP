@@ -431,7 +431,7 @@ class DB {
     private function __construct($dbConf) {
         try {
             $this->_db = new \PDO($dbConf['DB_DSN'], $dbConf["DB_USER"], $dbConf["DB_PWD"], $dbConf['DB_OPTIONS']) or exit ('数据库连接创建失败');
-            $this->_db_type = strtolower(substr($dbConf["DB_DSN"], 0, strpos($dbConf["DB_DSN"],':')));
+            $this->_db_type = strtolower(strstr($dbConf["DB_DSN"], ':', true));
             $this->_tbl_prefix = value($dbConf, "TBL_PREFIX", "");
         } catch (\PDOException $e) {    // 避免泄露密码等
             throw new \Exception($e->getMessage());

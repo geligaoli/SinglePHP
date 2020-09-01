@@ -1,0 +1,17 @@
+{
+    "name": "geligaoli/singlephp-ex",
+    "description": "Single File PHP Framework",
+    "type": "library",
+    "keywords": ["framework","SinglePHP", "basic"],
+    "homepage": "https://github.com/geligaoli/SinglePHP-Ex",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "geligaoli",
+            "email": "2556299300@qq.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.0"
+    }
+}
