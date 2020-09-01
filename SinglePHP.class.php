@@ -2,8 +2,9 @@
 /**
  * SinglePHP-Ex 单php文件精简框架。
  * https://github.com/geligaoli/SinglePHP-Ex
+ * @author geligaoli
  */
-
+namespace SinglePHP;
 /**
  * 获取和设置配置参数 支持批量定义
  * 如果$key是关联型数组，则会按K-V的形式写入配置
@@ -14,17 +15,16 @@
  */
 function Config($key, $value=null) {
     static $_config = array();
-    $args = func_num_args();
-    if($args == 1) {
+    if(func_num_args() == 1) {
         if(is_string($key))     //如果传入的key是字符串
-            return isset($_config[$key]) ? $_config[$key] : null;
+            return value($_config, $key);
         if(is_array($key)) {
             if(array_keys($key) !== range(0, count($key) - 1))      //如果传入的key是关联数组
                 $_config = array_merge($_config, $key);
             else {
                 $ret = array();
                 foreach ($key as $k)
-                    $ret[$k] = isset($_config[$k]) ? $_config[$k] : null;
+                    $ret[$k] = value($_config, $k);
                 return $ret;
             }
         }
@@ -36,7 +36,6 @@ function Config($key, $value=null) {
     }
     return null;
 }
-
 /**
  * 按配置生成url
  * @param string $ModuleAction
@@ -46,8 +45,8 @@ function Config($key, $value=null) {
 function Url($ModuleAction, $param=array()) {
     if (strcasecmp(Config('PATH_MODE'),'NORMAL') === 0) {
         $pathInfoArr = explode('/',trim($ModuleAction,'/'));
-        $moduleName = (isset($pathInfoArr[0]) && $pathInfoArr[0] !== '') ? $pathInfoArr[0] : 'Index';
-        $actionName = (isset($pathInfoArr[1]) && $pathInfoArr[1] !== '') ? $pathInfoArr[1] : 'Index';
+        $moduleName = valempty($pathInfoArr, 0, 'Index');
+        $actionName = valempty($pathInfoArr, 1, 'Index');
         $url = 'c='.$moduleName.'&a='.$actionName;
         if (is_string($param))
             $url .= '&' . $param;
@@ -59,7 +58,7 @@ function Url($ModuleAction, $param=array()) {
     } else { // pathinfo
         $url = trim($ModuleAction, '/');
         if (is_string($param))
-            $url .= '/' . str_replace(array('&','='), array('/','/'), $param);
+            $url .= '/' . strtr($param, '&=', '//');
         else {
             foreach($param as $k => $v)
                 $url .= '/'. $k .'/'. urlencode($v);
@@ -67,78 +66,77 @@ function Url($ModuleAction, $param=array()) {
         return APP_URL .'/'. $url .'.'. ltrim(Config("URL_HTML_SUFFIX"), '.');
     }
 }
-
 /**
  * 终止程序运行
- * @param string|array $err 终止原因 or Error Array
- * @return void
+ * @param string|array|Error $err 终止原因 or Error Array
  */
 function Halt($err) {
     $e = array();
-    if (APP_DEBUG || IS_CLI) {
-        if (is_array($err))
-            $e = $err;
-        else {
-            $trace = debug_backtrace();
-            $e['message'] = $err;
-            $e['file'] = $trace[0]['file'];
-            $e['line'] = $trace[0]['line'];
-            ob_start();
-            debug_print_backtrace();
-            $e['trace'] = ob_get_clean();
-        }
-        if (IS_CLI)
-            exit($e['message'] . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
-    } else
-        $e['message'] = is_array($err) ? $err['message'] : $err;
-    Log::fatal($e['message'].' debug_backtrace:'.$e['trace']);
+    if (is_array($err))
+        $e = $err;
+    elseif (is_string($err))
+        $e['message'] = $err;
+    else {
+        $e['message'] = $err->getMessage();
+        $e['file'] = $err->getFile();
+        $e['line'] = $err->getLine();
+        $e['trace'] = $err->getTraceAsString();
+    }
+    Log::fatal($e['message'].' debug_trace:'. $e['trace']);
+
+    if (IS_CLI) exit ($e['message'] . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
+    if (!APP_DEBUG) $e = $e['message'];
 
     header("Content-Type:text/html; charset=utf-8");
-    echo nl2br(htmlspecialchars(print_r($e, true), ENT_QUOTES)); // . '<pre>' . '</pre>';
-    exit;
+    exit (nl2br(htmlspecialchars(var_dump($e), ENT_QUOTES))); // . '<pre>' . '</pre>';
 }
-
 /**
  * 获取数据库实例。多数据库可仿照建立
  * @return DB
+ * @throws \Exception
  */
 function db() {
-    $dbConf = Config(array('DB_TYPE','DB_DSN','DB_HOST','DB_PORT','DB_USER','DB_PWD','DB_NAME','DB_CHARSET','DB_OPTIONS','TBL_PREFIX'));
+    $dbConf = Config(array('DB_DSN','DB_USER','DB_PWD','DB_OPTIONS','TBL_PREFIX'));
     return DB::getInstance($dbConf);
 }
-
 /**
  * 如果文件存在就include进来
  * @param string $file 文件路径
- * @return void
  */
 function includeIfExist($file) {
     if(file_exists($file))
-        include $file;
+        include_once $file;
 }
-
 function sp_output($data, $type) {
     header('Content-Type: '.$type.'; charset=utf-8');
     header('Content-Length: '. strlen($data));
-    echo ($data);
-    exit;
+    exit ($data);
 }
-
 function sp_tojson($data) {
     return is_string($data) ? $data : json_encode($data, JSON_UNESCAPED_UNICODE);
+}
+function value($array, $key, $default=null) {
+    return $array!=null && isset($array[$key]) ? $array[$key] : $default;
+}
+function valempty($array, $key, $default=null) {
+    return $array!=null && isset($array[$key]) && !empty($array[$key]) ? $array[$key] : $default;
 }
 
 /**
  * 总控类
  */
 class SinglePHP {
-    private static $_instance;      // 单例
+    private static $_instance = null;               // 单例
+    private static $appNamespace = 'App';           // 应用的主namespace
+    private static $ctlNamespace = 'Controller';    // 控制器的namespace
     /**
      * 构造函数，初始化配置
      * @param array $conf
      */
     private function __construct($conf) {
         Config($conf);
+        if (isset($conf["APP_NAMESPACE"])) self::$appNamespace = $conf["APP_NAMESPACE"];
+        if (isset($conf["CTL_NAMESPACE"])) self::$ctlNamespace = $conf["CTL_NAMESPACE"];
     }
     /**
      * 获取单例
@@ -146,7 +144,7 @@ class SinglePHP {
      * @return SinglePHP
      */
     public static function getInstance($conf) {
-        if(!(self::$_instance instanceof self))
+        if(self::$_instance == null)
             self::$_instance = new self($conf);
         return self::$_instance;
     }
@@ -156,23 +154,21 @@ class SinglePHP {
      * @return void
      */
     public function run() {
-        register_shutdown_function('\SinglePHP::appFatal'); // 错误和异常处理
-        set_error_handler('\SinglePHP::appError');
-        set_exception_handler('\SinglePHP::appException');
+        register_shutdown_function(array('SinglePHP\SinglePHP', 'appFatal')); // 错误和异常处理
+        set_error_handler(array('SinglePHP\SinglePHP', 'appError'));
+        set_exception_handler(array('SinglePHP\SinglePHP', 'appException'));
 
         defined('APP_DEBUG') || define('APP_DEBUG',false);
         define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
         define('APP_FULL_PATH', __DIR__ . DIRECTORY_SEPARATOR . Config('APP_PATH'));
-        define('IS_AJAX', ((isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest')) ? true : false);
+        define('IS_AJAX', (strtolower(value($_SERVER,'HTTP_X_REQUESTED_WITH')) == 'xmlhttprequest') ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
 
         date_default_timezone_set("Asia/Shanghai");
 
-        if(Config('USE_SESSION') == true) session_start();
-        includeIfExist(APP_FULL_PATH.'/common.php');
-        $pathMod = Config('PATH_MODE');
-        $pathMod = empty($pathMod) ? 'NORMAL' : $pathMod;
-        spl_autoload_register(array('SinglePHP', 'autoload'));
+        if(Config('USE_SESSION') == true) \session_start();
+        includeIfExist(APP_FULL_PATH.'/functions.php');
+        spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
 
         if (IS_CLI) {   // 命令行模式
             Config('PATH_MODE', 'PATH_INFO');
@@ -184,15 +180,15 @@ class SinglePHP {
                 $_GET[$k] = $v;
             }
         }
-        if(strcasecmp($pathMod,'NORMAL') === 0 || !isset($_SERVER['PATH_INFO'])) {
-            $moduleName = isset($_GET['c']) ? $_GET['c'] : 'Index';
-            $actionName = isset($_GET['a']) ? $_GET['a'] : 'Index';
+        if(!isset($_SERVER['PATH_INFO']) || strcasecmp(Config('PATH_MODE'),'NORMAL') === 0) {
+            $moduleName = value($_GET, 'c', 'Index');
+            $actionName = value($_GET, 'a', 'Index');
             $this->callActionMethod($moduleName, $actionName);
         } else {
-            $pathInfo = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : '';
+            $pathInfo = value($_SERVER, 'PATH_INFO', '');
             $pathInfo = preg_replace('/\.(' . ltrim(Config("URL_HTML_SUFFIX"), '.') . ')$/i', '', $pathInfo);
             $pathInfoArr = explode('/',trim($pathInfo,'/'));
-            $moduleName = (isset($pathInfoArr[0]) && $pathInfoArr[0] !== '') ? $pathInfoArr[0] : 'Index';
+            $moduleName = valempty($pathInfoArr, 0, 'Index');
             $actionName = $this->parseActionName($pathInfoArr);
             $this->callActionMethod($moduleName, $actionName);
         }
@@ -200,14 +196,15 @@ class SinglePHP {
     /**
      * 解析Action名及QS参数
      * @param array $pathInfoArr
+     * @return string
      */
     protected function parseActionName($pathInfoArr) {
-        $actionName = (isset($pathInfoArr[1]) && $pathInfoArr[1] !== '') ? $pathInfoArr[1] : 'Index';
-        $qsParam = array();
+        $actionName = valempty($pathInfoArr, 1, 'Index');
+        $queryParam = array();
         for ($idx=2; $idx<count($pathInfoArr); $idx++,$idx++)
-            $qsParam[$pathInfoArr[$idx]] = isset($pathInfoArr[$idx+1]) ? $pathInfoArr[$idx+1] : '';
-        $_GET = array_merge($_GET, $qsParam);
-        $_REQUEST = array_merge($_REQUEST, $qsParam);
+            $queryParam[$pathInfoArr[$idx]] = value($pathInfoArr, $idx+1, '');
+        $_GET = array_merge($_GET, $queryParam);
+        $_REQUEST = array_merge($_REQUEST, $queryParam);
         return $actionName;
     }
     /**
@@ -218,17 +215,13 @@ class SinglePHP {
     protected function callActionMethod($moduleName, $actionName) {
         define("MODULE_NAME", $moduleName);
 
-        if(!class_exists(MODULE_NAME.'Controller') && !preg_match('/^[A-Za-z][\w|\.]*$/', MODULE_NAME)) {
-            Halt('控制器 '.MODULE_NAME.'Controller 不存在');
-        }
-        $controllerClass = MODULE_NAME.'Controller';
+        $controllerClass = "\\".self::$appNamespace."\\".self::$ctlNamespace."\\".MODULE_NAME.'Controller';
+        if(!class_exists($controllerClass) && !preg_match('/^[A-Za-z][\w|\.]*$/', MODULE_NAME))
+            Halt('控制器 '.$controllerClass.' 不存在');
         $controller = new $controllerClass();
 
         $isRestful = $controller instanceof RestfulController;
-        if ($isRestful)
-            define("ACTION_NAME", ucfirst(strtolower($this->httpmethod()))); // Get Post Put Patch Delete Options
-        else
-            define("ACTION_NAME", $actionName);
+        define("ACTION_NAME", $isRestful ? ucfirst(strtolower($this->httpmethod())) : $actionName); // Get Post Put Patch Delete Options
 
         if(!method_exists($controller, ACTION_NAME.'Action'))
             Halt('方法 '.ACTION_NAME.'Action 不存在');
@@ -254,42 +247,28 @@ class SinglePHP {
      * @param string $class 类名
      */
     public static function autoload($class) {
-        if (substr($class,-10)=='Controller')
-            includeIfExist(APP_FULL_PATH.'/Controller/'.$class.'.class.php');
-        elseif (substr($class,-5)=='Model')
-            includeIfExist(APP_FULL_PATH.'/Model/'.$class.'.class.php');
-        elseif (substr($class,-7)=='Service')
-            includeIfExist(APP_FULL_PATH.'/Service/'.$class.'.class.php');
-        else
-            includeIfExist(APP_FULL_PATH.'/Lib/'.$class.'.class.php');
+        if ($class[0]===self::$appNamespace[0] && strncmp($class, self::$appNamespace."\\", strlen(self::$appNamespace)+1)===0) {
+            $classfile = strtr(substr($class, strlen(self::$appNamespace)), "\\", "/");
+            includeIfExist(APP_FULL_PATH.$classfile.'.class.php'); // 默认Namespace路径和文件路径一致
+        } else
+            includeIfExist(APP_FULL_PATH.'/vendor/autoload.php');  //composer安装的类库
     }
     // 接受PHP内部回调异常处理
-    static function appException($e) {
-        $err = array();
-        $err['message'] = $e->getMessage();
-        $trace = $e->getTrace();
-        if ('E' == $trace[0]['function']) {
-            $err['file'] = $trace[0]['file'];
-            $err['line'] = $trace[0]['line'];
-        } else {
-            $err['file'] = $e->getFile();
-            $err['line'] = $e->getLine();
-        }
-        $err['trace'] = $e->getTraceAsString();
-        Halt($err);
+    static function appException($error) {
+        Halt($error);
     }
     // 自定义错误处理
     static function appError($errno, $errstr, $errfile, $errline) {
         $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
         if (in_array($errno, $haltArr))
-            Halt("Errno: $errno $errstr File: $errfile lineno: $errline.");
+            Halt("Errno: $errno $errstr File: $errfile line: $errline.");
     }
     // 致命错误捕获
     static function appFatal() {
-        $e = error_get_last();
+        $error = error_get_last(); // last error with keys "type", "message", "file" and "line". Returns &null; if no error.
         $haltArr = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR);
-        if ($e && in_array($e['type'], $haltArr))
-            Halt($e);
+        if ($error && in_array($error['type'], $haltArr))
+            Halt($error);
     }
 }
 
@@ -305,9 +284,6 @@ class Controller {
         $this->_view = new View();
         $this->_init();
     }
-    /**
-     * 前置hook
-     */
     protected function _init() {}
     /**
      * 渲染模板并输出
@@ -315,7 +291,6 @@ class Controller {
      * 参数为相对于App/View/文件的相对路径，不包含后缀名，例如index/index
      * 如果参数为空，则默认使用$controller/$action.php
      * 如果参数不包含"/"，则默认使用$controller/$tpl
-     * @return void
      */
     protected function display($tpl='') {
         if($tpl === '')
@@ -328,14 +303,13 @@ class Controller {
      * 为视图引擎设置一个模板变量
      * @param string $name 要在模板中使用的变量名
      * @param mixed $value 模板中该变量名对应的值
-     * @return void
      */
     protected function assign($name,$value) {
         $this->_view->assign($name,$value);
     }
     /**
      * 将数据用json格式输出至浏览器，并停止执行代码
-     * @param array $data 要输出的数据
+     * @param array|string|object $data 要输出的数据
      */
     protected function json($json) {
         sp_output(sp_tojson($json), "application/json");
@@ -348,7 +322,7 @@ class Controller {
     }
     protected function redirect($url) {
         header("Location: $url");
-        exit;
+        exit();
     }
 }
 class BaseController extends Controller{
@@ -389,9 +363,8 @@ class View {
     }
     /**
      * 渲染模板并输出
-     * 2017-06-25 加入模板缓存
+     * 2017-06-25 加入模板缓存, 注意<include文件变化不会主动更新，可以清除缓存，或更新包含文件。
      * @param null|string $tplFile 模板文件路径，相对于App/View/文件的相对路径，不包含后缀名，例如index/index
-     * @return void
      */
     public function display($tplFile) {
         $this->_viewPath = $this->_tplDir . $tplFile . '.php';
@@ -400,11 +373,10 @@ class View {
             file_put_contents($cacheTplFile, $this->compiler($this->_viewPath));
         unset($tplFile);
         extract($this->_data);
-        // include $this->_viewPath;
         include $cacheTplFile;
     }
     /**
-     * 编译模板
+     * 编译模板文件
      */
     protected function compiler($tplfile, $flag=true) {
         $content = file_get_contents($tplfile);
@@ -427,7 +399,7 @@ class View {
                 '<?php }elseif( \\1 ){ ?>',
             ),
             $content);
-        $content = str_replace(array('</if>', '<else />', '</each>', 'APP_URL', 'MODULE_NAME', 'ACTION_NAME'),
+        $content = str_replace(array('</if>', '<else/>', '</each>', 'APP_URL', 'MODULE_NAME', 'ACTION_NAME'),
             array('<?php } ?>', '<?php }else{ ?>', '<?php } ?>', APP_URL, MODULE_NAME, ACTION_NAME), $content);
         // 匹配 <include "Public/Menu"/>
         $content = preg_replace_callback('/<include[ ]+[\'"](.+)[\'"][ ]*\/>/',
@@ -451,31 +423,15 @@ class DB {
     public  $_tbl_prefix = '';              /** 表名前缀 */
     private $autocount=false, $pagesize=20, $pageno=-1, $totalrows=-1; /** 是否自动计算总数，页数，页大小，总条数 */
     /**
-     * PDO 设置
-     * @var array
-     */
-    protected $options = array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::MYSQL_ATTR_MULTI_STATEMENTS => false);
-    /**
-     * 构造函数
+     * DB 构造函数
      * @param array $dbConf 配置数组
+     * @throws \Exception
      */
     private function __construct($dbConf) {
-        if(empty($dbConf['DB_CHARSET']))
-            $dbConf['DB_CHARSET'] = 'utf8';
-        if (!isset($dbConf['DB_OPTIONS']) || empty($dbConf['DB_OPTIONS']))
-            $dbConf['DB_OPTIONS'] = array(\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION, \PDO::MYSQL_ATTR_MULTI_STATEMENTS => false);
-
-        if ("mysql"==strtolower($dbConf("DB_TYPE"))) {
-            $dbConf['DB_OPTIONS'][\PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES '" . $dbConf("DB_CHARSET") . "'";
-            if (!isset($dbConf['DB_DSN']) || empty($dbConf['DB_DSN']))
-                $dbConf['DB_DSN'] = $dbConf("DB_TYPE") . ":host=" . $dbConf("DB_HOST") . ";port=" . $dbConf("DB_PORT") .
-                    ";dbname=" . $dbConf("DB_NAME") . ";charset=" . $dbConf("DB_CHARSET");
-        }
-
         try {
-            $this->_db = new \PDO($dbConf['DB_DSN'], $dbConf("DB_USER"), $dbConf("DB_PWD"), $dbConf['DB_OPTIONS']) or die('数据库连接创建失败');
-            $this->_db_type = strtolower($dbConf("DB_TYPE"));
-            $this->_tbl_prefix = empty($dbConf("TBL_PREFIX")) ? "" : $dbConf("TBL_PREFIX");
+            $this->_db = new \PDO($dbConf['DB_DSN'], $dbConf["DB_USER"], $dbConf["DB_PWD"], $dbConf['DB_OPTIONS']) or exit ('数据库连接创建失败');
+            $this->_db_type = strtolower(substr($dbConf["DB_DSN"], 0, strpos($dbConf["DB_DSN"],':')));
+            $this->_tbl_prefix = value($dbConf, "TBL_PREFIX", "");
         } catch (\PDOException $e) {    // 避免泄露密码等
             throw new \Exception($e->getMessage());
         }
@@ -484,6 +440,7 @@ class DB {
      * 获取DB类
      * @param array $dbConf 配置数组
      * @return DB
+     * @throws \Exception
      */
     static public function getInstance($dbConf) {
         $key = sp_tojson($dbConf);
@@ -560,12 +517,9 @@ class DB {
                     }
                     return $this->_db->lastInsertId();
                 } break;
-                case 'update':return $stmt->rowCount();
-                break;
-                case 'delete':return $stmt->rowCount();
-                break;
-                case 'select':return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-                break;
+                case 'update':
+                case 'delete':return $stmt->rowCount(); break;
+                case 'select':return $stmt->fetchAll(\PDO::FETCH_ASSOC); break;
                 default:break;
             }
         } catch (\PDOException $e) {
@@ -604,7 +558,6 @@ class DB {
  * 数据库模型
  * $model = new UserModel("tablename");
  * $model->where("sqlwhere conditon", array(vvv))->get();
- * @author
  */
 class Model {
     protected $_db = null;          // 数据库连接
@@ -622,11 +575,11 @@ class Model {
     // 回调方法 初始化模型
     protected function _initialize() {}
 
-    /**
-     * where条件
+    /** where条件
      * @param string|array $sqlwhere     sql条件|或查询数组
      * @param array  $bind               参数数组
-     * @return Model
+     * @return Model $this
+     * @throws \Exception
      */
     public function where($sqlwhere, $bind=array()) {
         if (is_array($sqlwhere)) {
@@ -665,7 +618,7 @@ class Model {
                 }
             }
             $this->_where = ' (' . implode(" AND ", $item) . ') ';
-            $this->_where .= isset($sqlwhere["_sql"]) ? $sqlwhere["_sql"] : "";
+            $this->_where .= value($sqlwhere, "_sql", "");
         } else {
             $this->_where = $sqlwhere;
             $this->_bind = $bind;
@@ -675,6 +628,7 @@ class Model {
     /** 获取一条记录
      * @param null|number $id
      * @return boolean|array
+     * @throws \Exception
      */
     public function get($id=null) {
         if ($id != null)
@@ -694,6 +648,7 @@ class Model {
     /** 更新数据
      * @param array $data
      * @return boolean|number
+     * @throws \Exception
      */
     public function update($data) {
         if (isset($data[$this->_pk])) {
@@ -719,6 +674,7 @@ class Model {
     /** 删除数据
      * @param null|number $id
      * @return boolean|number
+     * @throws \Exception
      */
     public function delete($id=null) {
         if ($id != null)

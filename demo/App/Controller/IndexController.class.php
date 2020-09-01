@@ -1,4 +1,12 @@
 <?php
+
+namespace App\Controller;
+
+use App\Functions;
+use App\Lib\Test as TestClass;
+use SinglePHP\BaseController;
+use SinglePHP\Log;
+
 class IndexController extends BaseController {
     public function IndexAction(){
         $this->assign('title', 'SinglePHP-Ex');
@@ -17,11 +25,11 @@ class IndexController extends BaseController {
         );
         $this->json($ret);                //将$ret格式化为json字符串后输出到浏览器
     }
-    public function CommonAction(){
-        echo Now();
+    public function FunctionAction(){
+        echo Functions\Now();
     }
     public function AutoLoadAction(){
-        $t = new Test();
+        $t = new TestClass();
         echo $t->hello();
     }
     public function LogAction(){
@@ -29,7 +37,12 @@ class IndexController extends BaseController {
         Log::warn('something');
         Log::notice('something');
         Log::debug('something');
-        Log::sql('something');
         echo '请到Log文件夹查看效果';
+    }
+    public function DatabaseAction() {
+        $db = \SinglePHP\db();
+        $db->beginTransaction();
+        echo nl2br(htmlspecialchars(print_r($db->select("select * from tbl_order"), true)));
+        $db->rollBack();
     }
 }

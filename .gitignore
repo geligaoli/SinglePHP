@@ -1,2 +1,7 @@
 .idea
 .DS_Store
+demo/App/Log/*
+demo/App/Cache/Tpl/*
+demo/App/Cache/File/*
+
+

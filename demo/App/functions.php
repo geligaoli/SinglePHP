@@ -1,4 +1,5 @@
 <?php
+namespace App\Functions;
 if (!defined('APP_FULL_PATH')) exit();
 
 if (!function_exists("Now")) {
