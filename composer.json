@@ -13,9 +13,17 @@
     ],
     "require": {
         "php": ">=5.3.0",
-        "geligaoli/singlephp-ex": "^2.x"
+        "geligaoli/singlephp-ex": "^2.0.3@dev",
+        "psr/log": "^1.1@dev"
+    },
+    "autoload": {
+        "files": ["App/Functions.php"],
+        "psr-4": {
+            "App\\": "App/"
+        }
     },
     "config": {
         "vendor-dir": "App/vendor"
-    }
+    },
+    "minimum-stability": "dev"
 }

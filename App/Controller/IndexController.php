@@ -10,6 +10,9 @@ use App\Service\OrderService;
 use SinglePHP\BaseController;
 use SinglePHP\Log;
 
+//use function App\Now;
+use function SinglePHP\db;
+
 class IndexController extends BaseController {
     public function IndexAction(){
         $this->assign('title', 'SinglePHP-Ex');
@@ -29,7 +32,7 @@ class IndexController extends BaseController {
         $this->json($ret);                //将$ret格式化为json字符串后输出到浏览器
     }
     public function FunctionAction(){
-        echo Functions\Now();
+        echo Now();
     }
     public function AutoLoadAction(){
         $t = new TestClass(new MyLog());
@@ -49,7 +52,7 @@ class IndexController extends BaseController {
         $orderService = new OrderService();
         $result3 = $orderService->getLast3Order();
 
-        $db = \SinglePHP\db();
+        $db = db();
         $db->beginTransaction();
         $result = $db->autocount()->page(1, 2)->select("select * from tbl_order");
         //echo nl2br(htmlspecialchars(print_r($result, true), ENT_HTML5));

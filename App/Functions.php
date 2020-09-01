@@ -1,5 +1,6 @@
 <?php
-namespace App\Functions;
+// namespace App; // 函数加命名空间反而调用麻烦
+
 if (!defined('APP_FULL_PATH')) exit();
 
 if (!function_exists("Now")) {
@@ -7,12 +8,12 @@ if (!function_exists("Now")) {
         return Date('Y-m-d H:i:s');
     }
 }
-if (!function_exists("simplexml")) {
-    function simplexml($topchild, $value = FALSE) {
-        $value = ($value === FALSE ? "" : htmlspecialchars($value, ENT_XML1));
-        return simplexml_load_string("<" . "?xml version=\"1.0\" encoding=\"UTF-8\"?" . ">\n<$topchild>$value</$topchild>");
-    }
-}
+//if (!function_exists("simplexml")) {
+//    function simplexml($topchild, $value = FALSE) {
+//        $value = ($value === FALSE ? "" : htmlspecialchars($value, ENT_XML1));
+//        return simplexml_load_string("<" . "?xml version=\"1.0\" encoding=\"UTF-8\"?" . ">\n<$topchild>$value</$topchild>");
+//    }
+//}
 if (!function_exists("fastcgi_finish_request")) {
     function fastcgi_finish_request() {}
 }
@@ -31,3 +32,9 @@ if (!function_exists("tojson")) {
         return json_encode($array, JSON_UNESCAPED_UNICODE);
     }
 }
+//if (!function_exists("Url")) {
+//    function Url($ModuleAction, $param=array()) {
+//        return \SinglePHP\Url($ModuleAction, $param=array());
+//    }
+//}
+

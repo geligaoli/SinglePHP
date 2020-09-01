@@ -1,14 +1,17 @@
 <?php
 namespace App;
-define('APP_DEBUG',  TRUE);
 
-include '../SinglePHP.php';
+define('APP_DEBUG',  TRUE);
+define('APP_FULL_PATH', dirname(__DIR__)."/App");
+
+require '../App/vendor/autoload.php';
 
 use SinglePHP\SinglePHP;
 use SinglePHP\Log;
+use function SinglePHP\Config;
 
 $conf = array(
-    'APP_PATH'          => 'App',          # 业务代码文件夹, 相对于SinglePHP.php文件的路径
+    'APP_PATH'          => 'App',          # 业务代码文件夹
     'LOG_LEVEL'         => Log::DEBUG,     # 调试级别
     'USE_SESSION'       => true,           # 是否开启session，默认false
 
