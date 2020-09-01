@@ -1,9 +1,5 @@
+.git
 .idea
+.project
 .DS_Store
-demo/composer.lock
-demo/App/Log/*
-demo/App/Cache/Tpl/*
-demo/App/Cache/File/*
-demo/App/vendor/*
-
 
