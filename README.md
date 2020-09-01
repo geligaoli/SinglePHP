@@ -3,16 +3,18 @@
 
 ### 简介
 
-[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简的MVC模式，简单系统的快速开发。整个框架不超过800行。看一眼代码和demo的内容，即可上手使用。
+[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简的MVC模式，简单系统的快速开发。看一眼代码和demo的内容，即可上手使用。
 
 基于SinglePHP-Ex的项目demo文件，请见 [Proejct](https://github.com/geligaoli/SinglePHP-Ex/tree/project) 分支。
+
+目前 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
 
 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是参考了 [SinglePHP](https://github.com/leo108/SinglePHP) 为原型，并整合了 [PhpPoem](https://github.com/cleey/phppoem)、Thinkphp早期 部分代码。
 
 
 #### 功能的增强有：
 
-    加入了namespace的支持，默认namespace的路径和文件路径一致。
+    加入了namespace的支持，默认namespace的路径和文件路径一致。采用psr-4标准。
     
     加入了composer的支持。保持了单文件php的简单，又可以composer安装组件。
     
@@ -28,8 +30,7 @@
     
     加入了命令行模式，方便写脚本用。
 
-
-目前 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
+    整个框架不超过800行。简单明了。
 
 #### composer 安装
 
@@ -144,14 +145,6 @@ fastcgi_params 文件中增加
     //includeIfExist(APP_FULL_PATH.'/Functions.php');
     //spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
 
-#### 页面无输出的检查
-
-请检查 Cache、Log 这两个目录及子目录是否存在且可写入。
-
-      App                                 
-      ├── Cache                           #缓存，该目录及以下 **需要写权限**
-      │   └── Tpl                         #编译后的view模板缓存，**需要写权限**
-      └── Log                             #日志文件夹，**需要写权限**
 
 #### Hello World
 
@@ -160,6 +153,8 @@ fastcgi_params 文件中增加
 入口文件：index.php
 
     <?php
+    namespace App;
+    
     define('APP_DEBUG',  TRUE);
     define('APP_FULL_PATH', dirname(__DIR__)."/App");
     
@@ -167,7 +162,11 @@ fastcgi_params 文件中增加
     #require '../SinglePHP.php';                //采用单独文件部署方式
     use SinglePHP\SinglePHP;
 
-    $config = array('APP_PATH' => 'App');       //指定业务目录为App
+    $config = array(
+        'APP_PATH' => 'App',
+        'APP_NAMESPACE' => __NAMESPACE__,  # 业务代码的主命名空间 namespace
+        'CTL_NAMESPACE' => 'Controller',   # 控制器代码的命名空间 namespace
+    );
     SinglePHP::getInstance($config)->run();     //跑起来啦
     
 
@@ -194,7 +193,17 @@ fastcgi_params 文件中增加
 
     Hello World
     
-    
+#### 页面无输出的检查
+
+请检查 Cache、Log 这两个目录及子目录是否存在且可写入。
+
+      App                                 
+      ├── Cache                           #缓存，该目录及以下 **需要写权限**
+      │   └── Tpl                         #编译后的view模板缓存，**需要写权限**
+      └── Log                             #日志文件夹，**需要写权限**
+
+
+
     
 ### 原 SinglePHP 简介
 
