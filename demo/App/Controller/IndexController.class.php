@@ -42,7 +42,10 @@ class IndexController extends BaseController {
     public function DatabaseAction() {
         $db = \SinglePHP\db();
         $db->beginTransaction();
-        echo nl2br(htmlspecialchars(print_r($db->select("select * from tbl_order"), true)));
+        $result = $db->select("select * from tbl_order limit 3");
+        var_dump($result);
+        //echo nl2br(htmlspecialchars(print_r($result, true), ENT_HTML5));
+        echo nl2br(htmlspecialchars($db->getLastSql(), ENT_QUOTES));
         $db->rollBack();
     }
 }

@@ -87,8 +87,8 @@ function Halt($err) {
     if (IS_CLI) exit ($e['message'] . ' File: ' . $e['file'] . '(' . $e['line'] . ') ' . $e['trace']);
     if (!APP_DEBUG) $e = $e['message'];
 
-    header("Content-Type:text/html; charset=utf-8");
-    exit (nl2br(htmlspecialchars(var_dump($e), ENT_QUOTES))); // . '<pre>' . '</pre>';
+    header("Content-Type: text/html; charset=utf-8");
+    exit (var_dump($e)); // . '<pre>' . '</pre>';
 }
 /**
  * 获取数据库实例。多数据库可仿照建立
@@ -327,7 +327,7 @@ class Controller {
 }
 class BaseController extends Controller{
     protected function _init(){
-        header("Content-Type:text/html; charset=utf-8");
+        header("Content-Type: text/html; charset=utf-8");
     }
 }
 class RestfulController {
