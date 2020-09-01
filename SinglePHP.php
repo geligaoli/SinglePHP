@@ -168,7 +168,7 @@ class SinglePHP {
 
         if(Config('USE_SESSION') == true) \session_start();
         includeIfExist(APP_FULL_PATH.'/Functions.php');
-        spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
+        //spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
 
         if (IS_CLI) {   // 命令行模式
             Config('PATH_MODE', 'PATH_INFO');

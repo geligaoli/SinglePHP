@@ -11,6 +11,12 @@
             "email": "2556299300@qq.com"
         }
     ],
+    "autoload": {
+        "files": [],
+        "psr-4": {
+            "SinglePHP\\": "."
+        }
+    },
     "require": {
         "php": ">=5.3.0"
     }
