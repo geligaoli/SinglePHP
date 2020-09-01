@@ -2,4 +2,5 @@
 .idea
 .project
 .DS_Store
+composer.lock
 

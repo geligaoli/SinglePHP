@@ -161,13 +161,13 @@ class SinglePHP {
         date_default_timezone_set("Asia/Shanghai");
 
         defined('APP_DEBUG') || define('APP_DEBUG',false);
-        defined('APP_FULL_PATH') || define('APP_FULL_PATH', __DIR__ . DIRECTORY_SEPARATOR . Config('APP_PATH'));
+        defined('APP_FULL_PATH') || define('APP_FULL_PATH',  getcwd() ."/../". Config('APP_PATH'));
         define('APP_URL', rtrim(dirname($_SERVER['SCRIPT_NAME']), "/"));
         define('IS_AJAX', (strtolower(value($_SERVER,'HTTP_X_REQUESTED_WITH')) == 'xmlhttprequest') ? true : false);
         define('IS_CLI',  PHP_SAPI=='cli'? 1 : 0);
 
         if(Config('USE_SESSION') == true) \session_start();
-        includeIfExist(APP_FULL_PATH.'/Functions.php');
+        //includeIfExist(APP_FULL_PATH.'/Functions.php');
         //spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
 
         if (IS_CLI) {   // 命令行模式

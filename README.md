@@ -5,7 +5,10 @@
 
 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简的MVC模式，简单系统的快速开发。整个框架不超过800行。看一眼代码和demo的内容，即可上手使用。
 
+基于SinglePHP-Ex的项目demo文件，请见 [Proejct](https://github.com/geligaoli/SinglePHP-Ex/tree/project) 分支。
+
 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是参考了 [SinglePHP](https://github.com/leo108/SinglePHP) 为原型，并整合了 [PhpPoem](https://github.com/cleey/phppoem)、Thinkphp早期 部分代码。
+
 
 #### 功能的增强有：
 
@@ -32,7 +35,7 @@
 
 环境要求PHP版本>=5.3，无其它库依赖。
 
-    composer require "geligaoli/singlephp-ex:^2.0.0"
+    composer require "geligaoli/singlephp-ex:^2.0.4"
 
 ### 文档
 
@@ -127,6 +130,29 @@ fastcgi_params 文件中增加
     └── Public                              #网站根目录
         └── index.php                       #入口文件
         
+#### 采用单独文件部署的最简目录
+
+    ┌── App                                 #业务代码文件夹，可在配置中指定路径
+    │   └── Controller                      #控制器文件夹
+    │        └── IndexController.php
+    ├── SinglePHP.php                       #SinglePHP文件
+    └── Public                              #网站根目录
+        └── index.php                       #入口文件
+
+同时修改SinglePHP.php，取消对autoload的注释
+    
+    //includeIfExist(APP_FULL_PATH.'/Functions.php');
+    //spl_autoload_register(array('SinglePHP\SinglePHP', 'autoload'));
+
+#### 页面无输出的检查
+
+请检查 Cache、Log 这两个目录及子目录是否存在且可写入。
+
+      App                                 
+      ├── Cache                           #缓存，该目录及以下 **需要写权限**
+      │   └── Tpl                         #编译后的view模板缓存，**需要写权限**
+      └── Log                             #日志文件夹，**需要写权限**
+
 #### Hello World
 
 只需增加3个文件，即可输出hello world。
@@ -134,14 +160,23 @@ fastcgi_params 文件中增加
 入口文件：index.php
 
     <?php
-    require __DIR__ . '/../App/vendor/autoload.php';    //包含核心文件
-    $config = array('APP_PATH' => '../App/');           //指定业务目录为App
-    SinglePHP::getInstance($config)->run();             //跑起来啦
+    define('APP_DEBUG',  TRUE);
+    define('APP_FULL_PATH', dirname(__DIR__)."/App");
+    
+    require '../App/vendor/autoload.php';       //采用composer方式
+    #require '../SinglePHP.php';                //采用单独文件部署方式
+    use SinglePHP\SinglePHP;
+
+    $config = array('APP_PATH' => 'App');       //指定业务目录为App
+    SinglePHP::getInstance($config)->run();     //跑起来啦
     
 
 默认控制器：App/Controller/IndexController.php
 
     <?php
+    namespace App\Controller;
+    use SinglePHP\BaseController;
+
     class IndexController extends BaseController {   //控制器必须继承Controller类或其子类
         public function IndexAction(){               //默认Action
             $this->assign('content', 'Hello World'); //给模板变量赋值
@@ -167,32 +202,12 @@ SinglePHP是一个单文件PHP框架，适用于简单系统的快速开发，�
 
 目前SinglePHP由[leo108](http://leo108.com)开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/leo108/SinglePHP)上Fork项目并提交Pull Request。
 
-### 文档
-
-中文: [http://leo108.github.io/SinglePHP/](http://leo108.github.io/SinglePHP/)
-
-English: [http://leo108.github.io/SinglePHP/en/](http://leo108.github.io/SinglePHP/en/) (Not Finished Yet)
-
 
 ### 原 PhpPoem 简介
 
 PhpPoem, 如诗一般简洁优美的PHP框架       
 PhpPoem, a simple and beautiful php framework, php will be like poet.
 
-
-Home: http://phppoem.com/  
+Home: [http://phppoem.com/](http://phppoem.com/)  
 Author: Cleey  
-QQ群: 137951449
 
-
-压力测试    
-服务器配置为 16G 16核，php5.3.3开启opcache，使用压测工具ab，结果如下：   
-   
-PhpPoem 2.0 并发 7500 持续10s，结果  7836.84 req/s ：   
-   
-ab -c7500 -t10 test.com   
-   
-Requests per second:    7836.84 [#/sec] (mean)   
-Time per request:       957.019 [ms] (mean)   
-Time per request:       0.128 [ms] (mean, across all concurrent requests)   
-Transfer rate:          1642.15 [Kbytes/sec] received   
