@@ -12,9 +12,9 @@
         }
     ],
     "autoload": {
-        "files": [],
+        "files": ["SinglePHP.php"],
         "psr-4": {
-            "SinglePHP\\": "."
+            "SinglePHP\\": ""
         }
     },
     "require": {

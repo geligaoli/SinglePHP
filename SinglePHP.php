@@ -250,8 +250,7 @@ class SinglePHP {
         if ($class[0]===self::$appNamespace[0] && strncmp($class, self::$appNamespace."\\", strlen(self::$appNamespace)+1)===0) {
             $classfile = strtr(substr($class, strlen(self::$appNamespace)), "\\", "/");
             includeIfExist(APP_FULL_PATH.$classfile.'.php'); // 默认Namespace路径和文件路径一致
-        } else
-            includeIfExist(APP_FULL_PATH.'/vendor/autoload.php');  //composer安装的类库
+        }
     }
     // 接受PHP内部回调异常处理
     static function appException($error) {
