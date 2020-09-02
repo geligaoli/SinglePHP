@@ -3,9 +3,9 @@
 
 ### 简介
 
-[SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简的MVC模式，简单系统的快速开发。看一眼代码和demo的内容，即可上手使用。
+[SinglePHP-Ex 2.x](https://github.com/geligaoli/SinglePHP-Ex) 是一个单文件PHP框架，提供了精简的MVC模式，简单系统的快速开发。看一眼代码和demo的内容，即可上手使用。
 
-基于SinglePHP-Ex的项目demo文件，请见 [Proejct](https://github.com/geligaoli/SinglePHP-Ex/tree/project) 分支。
+**基于SinglePHP-Ex的项目demo项目，请见 [Proejct](https://github.com/geligaoli/SinglePHP-Ex/tree/project) 分支。**
 
 目前 [SinglePHP-Ex](https://github.com/geligaoli/SinglePHP-Ex) 由 geligaoli 开发维护，如果你希望参与到此项目中来，可以到[Github](https://github.com/geligaoli/SinglePHP-Ex)上Fork项目并提交Pull Request。
 
