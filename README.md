@@ -46,7 +46,7 @@
 
 #### nginx的pathinfo方式配置
 
-假如项目部署在 /www/nginx/default目录下。设置open_basedir可提高安全性。
+假如项目部署在 /www/nginx/default目录下。设置open_basedir可提高安全性。Public目录是网站目录，可改为其它名称。
 
     root /www/nginx/default/Public;
     index index.html index.php;
