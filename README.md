@@ -1,4 +1,4 @@
-# SinglePHP-Ex
+# SinglePHP-Ex 2.x
 
 
 ### 简介
